@@ -1,0 +1,7 @@
+parameters:
+#    doctrine_fixture_generator.example.class: Webonaute\DoctrineFixturesGeneratorBundle\Example
+
+services:
+#    doctrine_fixture_generator.example:
+#        class: %doctrine_fixture_generator.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]
