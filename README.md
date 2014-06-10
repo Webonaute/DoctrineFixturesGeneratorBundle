@@ -13,8 +13,6 @@ Features include:
 - @todo Generate fixture reference when any other entity is link to this entity.
 - @todo Automatically set the load order (actually set to 1 and need to be change by hand.)
 
-**Note:** This bundle is actually in development and shoud not be use.
-
 **Caution:** This bundle is a development bundle and actually in high development itself and should not be use on production server.
 
 Documentation
