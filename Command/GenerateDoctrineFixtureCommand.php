@@ -200,8 +200,11 @@ EOT
         }
         $input->setOption('entity', $bundle . ':' . $entity);
 
-        // fields
+        // ids
         $input->setOption('ids', $this->addIds($input, $output, $dialog));
+
+        // name
+        $input->setOption('name', $this->getFixtureName($input, $output, $dialog));
 
         $count = count($input->getOption('ids'));
 
@@ -255,6 +258,43 @@ EOT
         }
 
         return $ids;
+    }
+
+    /**
+     * Interactive mode to add IDs list.
+     *
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     * @param DialogHelper    $dialog
+     *
+     * @return array
+     */
+    private function getFixtureName(InputInterface $input, OutputInterface $output, DialogHelper $dialog)
+    {
+        $name = $input->getOption('name');
+
+
+        //should ask for the name.
+        $output->writeln('');
+
+        $name = $dialog->askAndValidate(
+            $output,
+            $dialog->getQuestion('Fixture name', null),
+            function ($name) use ($input) {
+                if ($name == "" && count($input->getOption('ids')) > 1) {
+                    throw new \InvalidArgumentException('Name is require when using multiple IDs.');
+                }
+
+                return $name;
+            }
+        );
+
+        if ($name == ""){
+            //use default name.
+            $name = null;
+        }
+
+        return $name;
     }
 
     /**
