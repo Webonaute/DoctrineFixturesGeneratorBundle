@@ -48,6 +48,6 @@ public function registerBundles()
 $ php bin/console Doctrine:Generate:Fixture --entity=Blog:BlogPost --ids="12 534 124" --name="bug43"
 ```
 
-Then go in BlogBundle/DataFixture/Orm/LoadBug43.php.
+Then edit your new fixture BlogBundle/DataFixture/Orm/LoadBug43.php.
 
 Voila!
