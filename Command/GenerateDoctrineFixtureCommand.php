@@ -51,7 +51,7 @@ entity fixture inside a bundle with existing data:
 <info>php app/console doctrine:generate:fixture --entity=AcmeDemoBundle:Address</info>
 
 The above command would initialize a new entity fixture in the following entity
-namespace <info>Acme\BlogBundle\DataFixture\ORM\LoadAddress</info>.
+namespace <info>Acme\BlogBundle\DataFixtures\ORM\LoadAddress</info>.
 
 You can also optionally specify the id you want to generate in the new
 entity fixture. (Helpful when you want to create a new Test case based on real data.):
@@ -59,7 +59,7 @@ entity fixture. (Helpful when you want to create a new Test case based on real d
 <info>php app/console doctrine:generate:fixture --entity=AcmeDemoBundle:Address --ids="12"</info>
 
 The above command would initialize a new entity fixture in the following entity
-namespace <info>Acme\BlogBundle\DataFixture\ORM\LoadAddress12</info>.
+namespace <info>Acme\BlogBundle\DataFixtures\ORM\LoadAddress12</info>.
 
 You can also optionally specify the fixture name of the new entity fixture.
 (You can give for example the ticket number of what the fixture is for.):
