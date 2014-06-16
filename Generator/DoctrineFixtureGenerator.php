@@ -82,9 +82,14 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureGenerator = $this->getFixtureGenerator();
         $fixtureGenerator->setFixtureName($fixtureFileName);
         $fixtureGenerator->setBundleNameSpace($bundleNameSpace);
+        $fixtureGenerator->setMetadata($class);
 
         /** @var EntityManager $em */
         $em = $this->registry->getManager();
+
+        $repo = $em->getRepository($class->rootEntityName);
+        $items = $repo->findById($ids);
+        $fixtureGenerator->setItems($items);
 
         $fixtureCode = $fixtureGenerator->generateFixtureClass($class);
 
