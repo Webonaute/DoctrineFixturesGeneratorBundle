@@ -9,8 +9,6 @@
 
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Tool;
 
-use Doctrine\Common\Util\Inflector;
-use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
 
 /**
@@ -32,31 +30,6 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo;
  */
 class FixtureGenerator
 {
-
-    /**
-     * Hash-map to handle the change tracking policy string.
-     *
-     * @var array
-     */
-    protected static $changeTrackingPolicyMap
-        = array(
-            ClassMetadataInfo::CHANGETRACKING_DEFERRED_IMPLICIT => 'DEFERRED_IMPLICIT',
-            ClassMetadataInfo::CHANGETRACKING_DEFERRED_EXPLICIT => 'DEFERRED_EXPLICIT',
-            ClassMetadataInfo::CHANGETRACKING_NOTIFY            => 'NOTIFY',
-        );
-
-    /**
-     * Hash-map to handle the inheritance type string.
-     *
-     * @var array
-     */
-    protected static $inheritanceTypeMap
-        = array(
-            ClassMetadataInfo::INHERITANCE_TYPE_NONE            => 'NONE',
-            ClassMetadataInfo::INHERITANCE_TYPE_JOINED          => 'JOINED',
-            ClassMetadataInfo::INHERITANCE_TYPE_SINGLE_TABLE    => 'SINGLE_TABLE',
-            ClassMetadataInfo::INHERITANCE_TYPE_TABLE_PER_CLASS => 'TABLE_PER_CLASS',
-        );
 
     /**
      * @var string
@@ -192,55 +165,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      * @var string
      */
     protected $classToExtend = "AbstractFixture implements OrderedFixtureInterface";
-
-    /**
-     * Whether or not to generation annotations.
-     *
-     * @var boolean
-     */
-    protected $generateAnnotations = false;
-
-    /**
-     * Whether or not to generate sub methods.
-     *
-     * @var boolean
-     */
-    protected $generateEntityStubMethods = false;
-
-    /**
-     * Whether or not to update the entity class if it exists already.
-     *
-     * @var boolean
-     */
-    protected $updateEntityIfExists = false;
-
-    /**
-     * Whether or not to re-generate entity class if it exists already.
-     *
-     * @var boolean
-     */
-    protected $regenerateEntityIfExists = false;
-
-    /**
-     * Hash-map for handle types.
-     *
-     * @var array
-     */
-    protected $typeAlias
-        = array(
-            Type::DATETIMETZ   => '\DateTime',
-            Type::DATETIME     => '\DateTime',
-            Type::DATE         => '\DateTime',
-            Type::TIME         => '\DateTime',
-            Type::OBJECT       => '\stdClass',
-            Type::BIGINT       => 'integer',
-            Type::SMALLINT     => 'integer',
-            Type::TEXT         => 'string',
-            Type::BLOB         => 'string',
-            Type::DECIMAL      => 'string',
-            Type::JSON_ARRAY   => 'array',
-            Type::SIMPLE_ARRAY => 'array',
-        );
 
     /**
      * @var ClassMetadataInfo
@@ -426,40 +350,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         file_put_contents($path, $this->generateFixtureClass());
     }
 
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateDiscriminatorColumnAnnotation($metadata)
-    {
-        if ($metadata->inheritanceType != ClassMetadataInfo::INHERITANCE_TYPE_NONE) {
-            $discrColumn = $metadata->discriminatorColumn;
-            $columnDefinition = 'name="' . $discrColumn['name']
-                . '", type="' . $discrColumn['type']
-                . '", length=' . $discrColumn['length'];
-
-            return '@' . $this->annotationsPrefix . 'DiscriminatorColumn(' . $columnDefinition . ')';
-        }
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateDiscriminatorMapAnnotation($metadata)
-    {
-        if ($metadata->inheritanceType != ClassMetadataInfo::INHERITANCE_TYPE_NONE) {
-            $inheritanceClassMap = array();
-
-            foreach ($metadata->discriminatorMap as $type => $class) {
-                $inheritanceClassMap[] .= '"' . $type . '" = "' . $class . '"';
-            }
-
-            return '@' . $this->annotationsPrefix . 'DiscriminatorMap({' . implode(', ', $inheritanceClassMap) . '})';
-        }
-    }
 
     /**
      *
@@ -480,25 +370,26 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
             $setter = "set" . ucfirst($property->getName());
             $getter = "get" . ucfirst($property->getName());
-
-            if (method_exists($item, $setter)) {
+            $comment = "";
+            if ($this->hasMethod($setter, $this->metadata)) {
                 $value = $property->getValue($item);
 
-                if (is_integer($value)){
+                if (is_integer($value)) {
                     $setValue = $value;
-                }elseif(is_bool($value)){
+                } elseif (is_bool($value)) {
                     $setValue = $value;
-                }elseif($value instanceof \DateTime){
-                    $setValue = "new \\DateTime(\"".$value->format("Y-m-d H:i:s")."\")";
-                }elseif(is_object($value)){
+                } elseif ($value instanceof \DateTime) {
+                    $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
+                } elseif (is_object($value)) {
                     //check reference.
                     $setValue = "";
-                }else{
-                    $setValue = '"'.$value.'"';
+                    $comment = "//";
+                } else {
+                    $setValue = '"' . $value . '"';
                 }
 
 
-                $code .= "\n<spaces><spaces>\$item{$id}->{$setter}({$setValue});";
+                $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
             }
         }
 
@@ -555,323 +446,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $code;
     }
 
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateEntityConstructor(ClassMetadataInfo $metadata)
-    {
-        if ($this->hasMethod('__construct', $metadata)) {
-            return '';
-        }
-
-        $collections = array();
-
-        foreach ($metadata->associationMappings as $mapping) {
-            if ($mapping['type'] & ClassMetadataInfo::TO_MANY) {
-                $collections[] = '$this->' . $mapping['fieldName'] . ' = new \Doctrine\Common\Collections\ArrayCollection();';
-            }
-        }
-
-        if ($collections) {
-            return $this->prefixCodeWithSpaces(
-                str_replace(
-                    "<collections>",
-                    implode("\n" . $this->spaces, $collections),
-                    self::$constructorMethodTemplate
-                )
-            );
-        }
-
-        return '';
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateEntityFieldMappingProperties(ClassMetadataInfo $metadata)
-    {
-        $lines = array();
-
-        foreach ($metadata->fieldMappings as $fieldMapping) {
-            if ($this->hasProperty($fieldMapping['fieldName'], $metadata)
-                || $metadata->isInheritedField(
-                    $fieldMapping['fieldName']
-                )
-            ) {
-                continue;
-            }
-
-            $lines[] = $this->generateFieldMappingPropertyDocBlock($fieldMapping, $metadata);
-            $lines[] = $this->spaces . $this->fieldVisibility . ' $' . $fieldMapping['fieldName']
-                . (isset($fieldMapping['default']) ? ' = ' . var_export($fieldMapping['default'], true) : null) . ";\n";
-        }
-
-        return implode("\n", $lines);
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateEntityLifecycleCallbackMethods(ClassMetadataInfo $metadata)
-    {
-        if (isset($metadata->lifecycleCallbacks) && $metadata->lifecycleCallbacks) {
-            $methods = array();
-
-            foreach ($metadata->lifecycleCallbacks as $name => $callbacks) {
-                foreach ($callbacks as $callback) {
-                    if ($code = $this->generateLifecycleCallbackMethod($name, $callback, $metadata)) {
-                        $methods[] = $code;
-                    }
-                }
-            }
-
-            return implode("\n\n", $methods);
-        }
-
-        return "";
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     * @param string            $type
-     * @param string            $fieldName
-     * @param string|null       $typeHint
-     * @param string|null       $defaultValue
-     *
-     * @return string
-     */
-    protected function generateEntityStubMethod(
-        ClassMetadataInfo $metadata,
-        $type,
-        $fieldName,
-        $typeHint = null,
-        $defaultValue = null
-    ) {
-        $methodName = $type . Inflector::classify($fieldName);
-        if (in_array($type, array("add", "remove"))) {
-            $methodName = Inflector::singularize($methodName);
-        }
-
-        if ($this->hasMethod($methodName, $metadata)) {
-            return '';
-        }
-        $this->staticReflection[$metadata->name]['methods'][] = $methodName;
-
-        $var = sprintf('%sMethodTemplate', $type);
-        $template = self::$$var;
-
-        $methodTypeHint = null;
-        $types = Type::getTypesMap();
-        $variableType = $typeHint ? $this->getType($typeHint) . ' ' : null;
-
-        if ($typeHint && !isset($types[$typeHint])) {
-            $variableType = '\\' . ltrim($variableType, '\\');
-            $methodTypeHint = '\\' . $typeHint . ' ';
-        }
-
-        $replacements = array(
-            '<description>'     => ucfirst($type) . ' ' . $fieldName,
-            '<methodTypeHint>'  => $methodTypeHint,
-            '<variableType>'    => $variableType,
-            '<variableName>'    => Inflector::camelize($fieldName),
-            '<methodName>'      => $methodName,
-            '<fieldName>'       => $fieldName,
-            '<variableDefault>' => ($defaultValue !== null) ? (' = ' . $defaultValue) : '',
-            '<entity>'          => $this->getClassName($metadata)
-        );
-
-        $method = str_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $template
-        );
-
-        return $this->prefixCodeWithSpaces($method);
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateEntityStubMethods(ClassMetadataInfo $metadata)
-    {
-        $methods = array();
-
-        foreach ($metadata->fieldMappings as $fieldMapping) {
-            if (!isset($fieldMapping['id']) || !$fieldMapping['id'] || $metadata->generatorType == ClassMetadataInfo::GENERATOR_TYPE_NONE) {
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'set',
-                    $fieldMapping['fieldName'],
-                    $fieldMapping['type']
-                )
-                ) {
-                    $methods[] = $code;
-                }
-            }
-
-            if ($code = $this->generateEntityStubMethod(
-                $metadata,
-                'get',
-                $fieldMapping['fieldName'],
-                $fieldMapping['type']
-            )
-            ) {
-                $methods[] = $code;
-            }
-        }
-
-        foreach ($metadata->associationMappings as $associationMapping) {
-            if ($associationMapping['type'] & ClassMetadataInfo::TO_ONE) {
-                $nullable = $this->isAssociationIsNullable($associationMapping) ? 'null' : null;
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'set',
-                    $associationMapping['fieldName'],
-                    $associationMapping['targetEntity'],
-                    $nullable
-                )
-                ) {
-                    $methods[] = $code;
-                }
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'get',
-                    $associationMapping['fieldName'],
-                    $associationMapping['targetEntity']
-                )
-                ) {
-                    $methods[] = $code;
-                }
-            } elseif ($associationMapping['type'] & ClassMetadataInfo::TO_MANY) {
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'add',
-                    $associationMapping['fieldName'],
-                    $associationMapping['targetEntity']
-                )
-                ) {
-                    $methods[] = $code;
-                }
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'remove',
-                    $associationMapping['fieldName'],
-                    $associationMapping['targetEntity']
-                )
-                ) {
-                    $methods[] = $code;
-                }
-                if ($code = $this->generateEntityStubMethod(
-                    $metadata,
-                    'get',
-                    $associationMapping['fieldName'],
-                    'Doctrine\Common\Collections\Collection'
-                )
-                ) {
-                    $methods[] = $code;
-                }
-            }
-        }
-
-        return implode("\n\n", $methods);
-    }
-
-    /**
-     * @param array             $fieldMapping
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateFieldMappingPropertyDocBlock(array $fieldMapping, ClassMetadataInfo $metadata)
-    {
-        $lines = array();
-        $lines[] = $this->spaces . '/**';
-        $lines[] = $this->spaces . ' * @var ' . $this->getType($fieldMapping['type']);
-
-        if ($this->generateAnnotations) {
-            $lines[] = $this->spaces . ' *';
-
-            $column = array();
-            if (isset($fieldMapping['columnName'])) {
-                $column[] = 'name="' . $fieldMapping['columnName'] . '"';
-            }
-
-            if (isset($fieldMapping['type'])) {
-                $column[] = 'type="' . $fieldMapping['type'] . '"';
-            }
-
-            if (isset($fieldMapping['length'])) {
-                $column[] = 'length=' . $fieldMapping['length'];
-            }
-
-            if (isset($fieldMapping['precision'])) {
-                $column[] = 'precision=' . $fieldMapping['precision'];
-            }
-
-            if (isset($fieldMapping['scale'])) {
-                $column[] = 'scale=' . $fieldMapping['scale'];
-            }
-
-            if (isset($fieldMapping['nullable'])) {
-                $column[] = 'nullable=' . var_export($fieldMapping['nullable'], true);
-            }
-
-            if (isset($fieldMapping['columnDefinition'])) {
-                $column[] = 'columnDefinition="' . $fieldMapping['columnDefinition'] . '"';
-            }
-
-            if (isset($fieldMapping['unique'])) {
-                $column[] = 'unique=' . var_export($fieldMapping['unique'], true);
-            }
-
-            $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'Column(' . implode(', ', $column) . ')';
-
-            if (isset($fieldMapping['id']) && $fieldMapping['id']) {
-                $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'Id';
-
-                if ($generatorType = $this->getIdGeneratorTypeString($metadata->generatorType)) {
-                    $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'GeneratedValue(strategy="' . $generatorType . '")';
-                }
-
-                if ($metadata->sequenceGeneratorDefinition) {
-                    $sequenceGenerator = array();
-
-                    if (isset($metadata->sequenceGeneratorDefinition['sequenceName'])) {
-                        $sequenceGenerator[] = 'sequenceName="' . $metadata->sequenceGeneratorDefinition['sequenceName'] . '"';
-                    }
-
-                    if (isset($metadata->sequenceGeneratorDefinition['allocationSize'])) {
-                        $sequenceGenerator[] = 'allocationSize=' . $metadata->sequenceGeneratorDefinition['allocationSize'];
-                    }
-
-                    if (isset($metadata->sequenceGeneratorDefinition['initialValue'])) {
-                        $sequenceGenerator[] = 'initialValue=' . $metadata->sequenceGeneratorDefinition['initialValue'];
-                    }
-
-                    $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'SequenceGenerator(' . implode(
-                            ', ',
-                            $sequenceGenerator
-                        ) . ')';
-                }
-            }
-
-            if (isset($fieldMapping['version']) && $fieldMapping['version']) {
-                $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'Version';
-            }
-        }
-
-        $lines[] = $this->spaces . ' */';
-
-        return implode("\n", $lines);
-    }
 
     /**
      *
@@ -896,137 +470,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return 'namespace ' . $this->getNamespace() . ';';
     }
 
-    /**
-     * @param array $joinColumn
-     *
-     * @return string
-     */
-    protected function generateJoinColumnAnnotation(array $joinColumn)
-    {
-        $joinColumnAnnot = array();
-
-        if (isset($joinColumn['name'])) {
-            $joinColumnAnnot[] = 'name="' . $joinColumn['name'] . '"';
-        }
-
-        if (isset($joinColumn['referencedColumnName'])) {
-            $joinColumnAnnot[] = 'referencedColumnName="' . $joinColumn['referencedColumnName'] . '"';
-        }
-
-        if (isset($joinColumn['unique']) && $joinColumn['unique']) {
-            $joinColumnAnnot[] = 'unique=' . ($joinColumn['unique'] ? 'true' : 'false');
-        }
-
-        if (isset($joinColumn['nullable'])) {
-            $joinColumnAnnot[] = 'nullable=' . ($joinColumn['nullable'] ? 'true' : 'false');
-        }
-
-        if (isset($joinColumn['onDelete'])) {
-            $joinColumnAnnot[] = 'onDelete="' . ($joinColumn['onDelete'] . '"');
-        }
-
-        if (isset($joinColumn['columnDefinition'])) {
-            $joinColumnAnnot[] = 'columnDefinition="' . $joinColumn['columnDefinition'] . '"';
-        }
-
-        return '@' . $this->annotationsPrefix . 'JoinColumn(' . implode(', ', $joinColumnAnnot) . ')';
-    }
-
-    /**
-     * @param string            $name
-     * @param string            $methodName
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateLifecycleCallbackMethod($name, $methodName, $metadata)
-    {
-        if ($this->hasMethod($methodName, $metadata)) {
-            return '';
-        }
-        $this->staticReflection[$metadata->name]['methods'][] = $methodName;
-
-        $replacements = array(
-            '<name>'       => $this->annotationsPrefix . ucfirst($name),
-            '<methodName>' => $methodName,
-        );
-
-        $method = str_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            self::$lifecycleCallbackMethodTemplate
-        );
-
-        return $this->prefixCodeWithSpaces($method);
-    }
-
-    /**
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return string
-     */
-    protected function generateTableAnnotation($metadata)
-    {
-        $table = array();
-
-        if (isset($metadata->table['schema'])) {
-            $table[] = 'schema="' . $metadata->table['schema'] . '"';
-        }
-
-        if (isset($metadata->table['name'])) {
-            $table[] = 'name="' . $metadata->table['name'] . '"';
-        }
-
-        if (isset($metadata->table['uniqueConstraints']) && $metadata->table['uniqueConstraints']) {
-            $constraints = $this->generateTableConstraints('UniqueConstraint', $metadata->table['uniqueConstraints']);
-            $table[] = 'uniqueConstraints={' . $constraints . '}';
-        }
-
-        if (isset($metadata->table['indexes']) && $metadata->table['indexes']) {
-            $constraints = $this->generateTableConstraints('Index', $metadata->table['indexes']);
-            $table[] = 'indexes={' . $constraints . '}';
-        }
-
-        return '@' . $this->annotationsPrefix . 'Table(' . implode(', ', $table) . ')';
-    }
-
-    /**
-     * @param string $constraintName
-     * @param array  $constraints
-     *
-     * @return string
-     */
-    protected function generateTableConstraints($constraintName, $constraints)
-    {
-        $annotations = array();
-        foreach ($constraints as $name => $constraint) {
-            $columns = array();
-            foreach ($constraint['columns'] as $column) {
-                $columns[] = '"' . $column . '"';
-            }
-            $annotations[] = '@' . $this->annotationsPrefix . $constraintName . '(name="' . $name . '", columns={' . implode(
-                    ', ',
-                    $columns
-                ) . '})';
-        }
-        return implode(', ', $annotations);
-    }
-
-    /**
-     * @param integer $type The policy used for change-tracking for the mapped class.
-     *
-     * @return string The literal string for the change-tracking type.
-     *
-     * @throws \InvalidArgumentException When the change-tracking type does not exists.
-     */
-    protected function getChangeTrackingPolicyString($type)
-    {
-        if (!isset(self::$changeTrackingPolicyMap[$type])) {
-            throw new \InvalidArgumentException(sprintf('Invalid provided ChangeTrackingPolicy: %s', $type));
-        }
-
-        return self::$changeTrackingPolicyMap[$type];
-    }
 
     /**
      *
@@ -1057,37 +500,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $this->classToExtend = $classToExtend;
     }
 
-    /**
-     * @param integer $type The generator to use for the mapped class.
-     *
-     * @return string The literal string for the generator type.
-     *
-     * @throws \InvalidArgumentException    When the generator type does not exists.
-     */
-    protected function getIdGeneratorTypeString($type)
-    {
-        if (!isset(self::$generatorStrategyMap[$type])) {
-            throw new \InvalidArgumentException(sprintf('Invalid provided IdGeneratorType: %s', $type));
-        }
-
-        return self::$generatorStrategyMap[$type];
-    }
-
-    /**
-     * @param integer $type The inheritance type used by the class and its subclasses.
-     *
-     * @return string The literal string for the inheritance type.
-     *
-     * @throws \InvalidArgumentException When the inheritance type does not exists.
-     */
-    protected function getInheritanceTypeString($type)
-    {
-        if (!isset(self::$inheritanceTypeMap[$type])) {
-            throw new \InvalidArgumentException(sprintf('Invalid provided InheritanceType: %s', $type));
-        }
-
-        return self::$inheritanceTypeMap[$type];
-    }
 
     /**
      *
@@ -1098,19 +510,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $this->getBundleNameSpace() . '\DataFixture\ORM;';
     }
 
-    /**
-     * @param string $type
-     *
-     * @return string
-     */
-    protected function getType($type)
-    {
-        if (isset($this->typeAlias[$type])) {
-            return $this->typeAlias[$type];
-        }
-
-        return $type;
-    }
 
     /**
      * @param string            $method
@@ -1161,111 +560,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 $this->staticReflection[$metadata->name]['properties']
             )
         );
-    }
-
-    /**
-     * @param array $associationMapping
-     *
-     * @return bool
-     */
-    protected function isAssociationIsNullable($associationMapping)
-    {
-        if (isset($associationMapping['id']) && $associationMapping['id']) {
-            return false;
-        }
-
-        if (isset($associationMapping['joinColumns'])) {
-            $joinColumns = $associationMapping['joinColumns'];
-        } else {
-            //@todo there is no way to retrieve targetEntity metadata
-            $joinColumns = array();
-        }
-
-        foreach ($joinColumns as $joinColumn) {
-            if (isset($joinColumn['nullable']) && !$joinColumn['nullable']) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * @todo this won't work if there is a namespace in brackets and a class outside of it.
-     *
-     * @param string $src
-     *
-     * @return void
-     */
-    protected function parseTokensInEntityFile($src)
-    {
-        $tokens = token_get_all($src);
-        $lastSeenNamespace = "";
-        $lastSeenClass = false;
-
-        $inNamespace = false;
-        $inClass = false;
-
-        for ($i = 0; $i < count($tokens); $i++) {
-            $token = $tokens[$i];
-            if (in_array($token[0], array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT))) {
-                continue;
-            }
-
-            if ($inNamespace) {
-                if ($token[0] == T_NS_SEPARATOR || $token[0] == T_STRING) {
-                    $lastSeenNamespace .= $token[1];
-                } elseif (is_string($token) && in_array($token, array(';', '{'))) {
-                    $inNamespace = false;
-                }
-            }
-
-            if ($inClass) {
-                $inClass = false;
-                $lastSeenClass = $lastSeenNamespace . ($lastSeenNamespace ? '\\' : '') . $token[1];
-                $this->staticReflection[$lastSeenClass]['properties'] = array();
-                $this->staticReflection[$lastSeenClass]['methods'] = array();
-            }
-
-            if ($token[0] == T_NAMESPACE) {
-                $lastSeenNamespace = "";
-                $inNamespace = true;
-            } elseif ($token[0] == T_CLASS) {
-                $inClass = true;
-            } elseif ($token[0] == T_FUNCTION) {
-                if ($tokens[$i + 2][0] == T_STRING) {
-                    $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 2][1];
-                } elseif ($tokens[$i + 2] == "&" && $tokens[$i + 3][0] == T_STRING) {
-                    $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 3][1];
-                }
-            } elseif (in_array(
-                    $token[0],
-                    array(T_VAR, T_PUBLIC, T_PRIVATE, T_PROTECTED)
-                )
-                && $tokens[$i + 2][0] != T_FUNCTION
-            ) {
-                $this->staticReflection[$lastSeenClass]['properties'][] = substr($tokens[$i + 2][1], 1);
-            }
-        }
-    }
-
-    /**
-     * @param string $code
-     * @param int    $num
-     *
-     * @return string
-     */
-    protected function prefixCodeWithSpaces($code, $num = 1)
-    {
-        $lines = explode("\n", $code);
-
-        foreach ($lines as $key => $value) {
-            if (!empty($value)) {
-                $lines[$key] = str_repeat($this->spaces, $num) . $lines[$key];
-            }
-        }
-
-        return implode("\n", $lines);
     }
 
 }
