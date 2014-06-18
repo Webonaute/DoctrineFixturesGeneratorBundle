@@ -371,7 +371,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             $setter = "set" . ucfirst($property->getName());
             $getter = "get" . ucfirst($property->getName());
             $comment = "";
-            if ($this->hasMethod($setter, $this->metadata)) {
+            if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
 
                 if (is_integer($value)) {
@@ -508,58 +508,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected function getNamespace()
     {
         return $this->getBundleNameSpace() . '\DataFixture\ORM;';
-    }
-
-
-    /**
-     * @param string            $method
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return bool
-     */
-    protected function hasMethod($method, ClassMetadataInfo $metadata)
-    {
-        if ($this->extendsClass()) {
-            // don't generate method if its already on the base class.
-            $reflClass = new \ReflectionClass($this->getClassToExtend());
-
-            if ($reflClass->hasMethod($method)) {
-                return true;
-            }
-        }
-
-        return (
-            isset($this->staticReflection[$metadata->name])
-            && in_array(
-                $method,
-                $this->staticReflection[$metadata->name]['methods']
-            )
-        );
-    }
-
-    /**
-     * @param string            $property
-     * @param ClassMetadataInfo $metadata
-     *
-     * @return bool
-     */
-    protected function hasProperty($property, ClassMetadataInfo $metadata)
-    {
-        if ($this->extendsClass()) {
-            // don't generate property if its already on the base class.
-            $reflClass = new \ReflectionClass($this->getClassToExtend());
-            if ($reflClass->hasProperty($property)) {
-                return true;
-            }
-        }
-
-        return (
-            isset($this->staticReflection[$metadata->name])
-            && in_array(
-                $property,
-                $this->staticReflection[$metadata->name]['properties']
-            )
-        );
     }
 
 }
