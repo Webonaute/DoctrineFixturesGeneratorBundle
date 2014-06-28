@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of the RedSkyDown package.
+ * This file is part of the Webonaute package.
  *
  * (c) Mathieu Delisle <mdelisle@webonaute.ca>
  *
