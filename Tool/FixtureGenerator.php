@@ -76,7 +76,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
+<spaces><spaces>$manager->getClassMetaData(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
+<spaces>
+<spaces><spaces>$manager->flush();
 <spaces>}
 ';
 
@@ -87,7 +90,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         = '
     <spaces>$item<itemCount> = new <entityName>();<itemStubs>
     <spaces>$manager->persist($item<itemCount>);
-    <spaces>$manager->getClassMetaData(get_class($item<itemCount>))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 ';
 
     /**
@@ -442,6 +444,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected function generateFixtureBody()
     {
         $code = self::$getLoadMethodTemplate;
+        $classpath = $this->getMetadata()->getName();
+        $pos = strrpos($classpath, "\\");
+
+        $code = str_replace("<entityName>", substr($classpath, $pos+1), $code);
         $code = str_replace("<fixtures>", $this->generateFixtures(), $code);
         return $code;
     }
