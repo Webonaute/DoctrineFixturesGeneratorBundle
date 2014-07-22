@@ -88,7 +88,12 @@ class DoctrineFixtureGenerator extends Generator
         $em = $this->registry->getManager();
 
         $repo = $em->getRepository($class->rootEntityName);
-        $items = $repo->findById($ids);
+        if (empty($ids)){
+            $items = $repo->findAll();
+        }else{
+            $items = $repo->findById($ids);
+        }
+
         $fixtureGenerator->setItems($items);
 
         $fixtureCode = $fixtureGenerator->generateFixtureClass($class);
