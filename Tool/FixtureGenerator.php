@@ -369,9 +369,16 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
         foreach ($properties as $property) {
             $property->setAccessible(true);
-
-            $setter = "set" . ucfirst($property->getName());
-            $getter = "get" . ucfirst($property->getName());
+            $name = $property->getName();
+            if (strpos($name, '_')) {
+                $_names = explode('_', $property->getName());
+                foreach ($_names as $k => $_name) {
+                    $_names[$k] = ucfirst($_name);
+                }
+                $name = implode('', $_names);
+            }
+            $setter = "set" . ucfirst($name);
+            $getter = "get" . ucfirst($name);
             $comment = "";
             if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
@@ -379,22 +386,26 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 if (is_integer($value)) {
                     $setValue = $value;
                 } elseif (is_bool($value)) {
-                    $setValue = $value;
+                    if ($value == true) {
+                        $setValue = 1;
+                    } else {
+                        $setValue = 0;
+                    }
                 } elseif ($value instanceof \DateTime) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value)) {
                     //check reference.
                     $setValue = "";
                     $comment = "//";
+                } elseif (is_array($value)) {
+                    $setValue = "unserialize('".serialize($value)."')";
                 } else {
                     $setValue = '"' . $value . '"';
                 }
 
-
                 $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
             }
         }
-
         return $code;
     }
 
