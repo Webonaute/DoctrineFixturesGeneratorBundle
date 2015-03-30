@@ -29,11 +29,11 @@
   },
   "require": {
     "php": ">=5.3.3",
-    "symfony/framework-bundle": "~2.2",
+    "symfony/framework-bundle": ">=2.2",
     "sensio/generator-bundle": "~2.3",
-    "doctrine/orm": "~2.2,>=2.2.3",
-    "doctrine/doctrine-bundle": "~1.2",
-    "doctrine/doctrine-fixtures-bundle": "2.2.*@dev"
+    "doctrine/orm": ">=2.2",
+    "doctrine/doctrine-bundle": ">=1.2",
+    "doctrine/doctrine-fixtures-bundle": ">=2.2"
   },
   "autoload": {
     "psr-0": {"Webonaute\\DoctrineFixturesGeneratorBundle": ""}
