@@ -239,7 +239,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 if (is_integer($value)) {
                     $setValue = $value;
                 } elseif (is_bool($value)) {
-                    if ($value == true) {
+                    if ($value === true) {
                         $setValue = 1;
                     } else {
                         $setValue = 0;
