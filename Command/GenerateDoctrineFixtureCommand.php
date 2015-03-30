@@ -98,7 +98,7 @@ EOT
         $dialog = $this->getDialogHelper();
 
         if ($input->isInteractive()) {
-            if (!$dialog->askConfirmation(
+            if ( ! $dialog->askConfirmation(
                 $output,
                 $dialog->getQuestion('Do you confirm generation', 'yes', '?'),
                 true
@@ -188,7 +188,9 @@ EOT
                 $b = $kernel->getBundle($bundle);
                 try {
                     //check if entity exist in the selected bundle.
-                    $entityObject = $this->getContainer()->get("doctrine")->getManager()->getRepository($bundle . ":" . $entity);
+                    $entityObject = $this->getContainer()->get("doctrine")->getManager()->getRepository(
+                        $bundle . ":" . $entity
+                    );
                     break;
                 } catch (\Exception $e) {
                     $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
@@ -250,7 +252,7 @@ EOT
                     return $id;
                 }
             );
-            if (!$id) {
+            if ( ! $id) {
                 break;
             }
 
@@ -289,7 +291,7 @@ EOT
             }
         );
 
-        if ($name == ""){
+        if ($name == "") {
             //use default name.
             $name = null;
         }

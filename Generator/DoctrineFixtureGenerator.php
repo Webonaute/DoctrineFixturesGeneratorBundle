@@ -88,9 +88,9 @@ class DoctrineFixtureGenerator extends Generator
         $em = $this->registry->getManager();
 
         $repo = $em->getRepository($class->rootEntityName);
-        if (empty($ids)){
+        if (empty($ids)) {
             $items = $repo->findAll();
-        }else{
+        } else {
             $items = $repo->findById($ids);
         }
 
@@ -146,6 +146,7 @@ class DoctrineFixtureGenerator extends Generator
     {
         $fixtureGenerator = new FixtureGenerator();
         $fixtureGenerator->setNumSpaces(4);
+
         return $fixtureGenerator;
     }
 

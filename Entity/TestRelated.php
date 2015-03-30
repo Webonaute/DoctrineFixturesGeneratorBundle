@@ -7,7 +7,6 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * TestRelated
- *
  * @ORM\Table(name="wbnt_dfgb_testrelated")
  * @ORM\Entity()
  */
@@ -44,6 +43,7 @@ class TestRelated
     public function setId($id)
     {
         $this->id = $id;
+
         return $this;
     }
 
@@ -63,6 +63,7 @@ class TestRelated
     public function setName($name)
     {
         $this->name = $name;
+
         return $this;
     }
 

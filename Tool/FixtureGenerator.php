@@ -13,10 +13,8 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo;
 
 /**
  * Generic class used to generate PHP5 fixture classes from existing data.
- *
  *     [php]
  *     $classes = $em->getClassMetadataFactory()->getAllMetadata();
- *
  *     $generator = new \Doctrine\ORM\Tools\EntityGenerator();
  *     $generator->setGenerateAnnotations(true);
  *     $generator->setGenerateStubMethods(true);
@@ -24,9 +22,7 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo;
  *     $generator->setUpdateEntityIfExists(true);
  *     $generator->generate($classes, '/path/to/generate/entities');
  *
- *
  * @author  Mathieu Delisle <mdelisle@webonaute.ca>
- *
  */
 class FixtureGenerator
 {
@@ -69,6 +65,15 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @var string
      */
+    protected static $getItemFixtureTemplate
+        = '
+    <spaces>$item<itemCount> = new <entityName>();<itemStubs>
+    <spaces>$manager->persist($item<itemCount>);
+';
+
+    /**
+     * @var string
+     */
     protected static $getLoadMethodTemplate
         = '
 <spaces>/**
@@ -84,18 +89,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 ';
 
     /**
-     * @var string
+     * @var bool
      */
-    protected static $getItemFixtureTemplate
-        = '
-    <spaces>$item<itemCount> = new <entityName>();<itemStubs>
-    <spaces>$manager->persist($item<itemCount>);
-';
-
-    /**
-     * @var string
-     */
-    protected $fixtureName = "";
+    protected $backupExisting = true;
 
     /**
      * @var string
@@ -103,32 +99,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $bundleNameSpace = "";
 
     /**
-     * Array of data to generate item stubs.
+     * The class all generated entities should extend.
      *
-     * @var array
+     * @var string
      */
-    protected $items = array();
-
-    /**
-     * @return array
-     */
-    public function getItems()
-    {
-        return $this->items;
-    }
-
-    /**
-     * @param array $items
-     */
-    public function setItems(array $items)
-    {
-        $this->items = $items;
-    }
-
-    /**
-     * @var bool
-     */
-    protected $backupExisting = true;
+    protected $classToExtend = "AbstractFixture implements OrderedFixtureInterface";
 
     /**
      * The extension to use for written php files.
@@ -138,6 +113,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $extension = '.php';
 
     /**
+     * @var string
+     */
+    protected $fixtureName = "";
+
+    /**
      * Whether or not the current ClassMetadataInfo instance is new or old.
      *
      * @var boolean
@@ -145,9 +125,17 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $isNew = true;
 
     /**
+     * Array of data to generate item stubs.
+     *
      * @var array
      */
-    protected $staticReflection = array();
+    protected $items = array();
+
+    /**
+     * @var ClassMetadataInfo
+     * @return FixtureGenerator
+     */
+    protected $metadata = null;
 
     /**
      * Number of spaces to use for indention in generated code.
@@ -162,17 +150,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $spaces = '    ';
 
     /**
-     * The class all generated entities should extend.
-     *
-     * @var string
+     * @var array
      */
-    protected $classToExtend = "AbstractFixture implements OrderedFixtureInterface";
-
-    /**
-     * @var ClassMetadataInfo
-     * @return FixtureGenerator
-     */
-    protected $metadata = null;
+    protected $staticReflection = array();
 
     /**
      * Constructor.
@@ -196,7 +176,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * Generates a PHP5 Doctrine 2 entity class from the given ClassMetadataInfo instance.
-     *
      *
      * @return string
      */
@@ -229,132 +208,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     }
 
     /**
-     * @return int
-     */
-    protected function generateOrder()
-    {
-        return 1;
-    }
-
-    protected function generateUse()
-    {
-        return "use " . $this->getMetadata()->rootEntityName . ";";
-    }
-
-    /**
-     * @return string
-     */
-    public function getBundleNameSpace()
-    {
-        return $this->bundleNameSpace;
-    }
-
-    /**
-     * @param $namespace
-     *
-     * @return FixtureGenerator
-     */
-    public function setBundleNameSpace($namespace)
-    {
-        $this->bundleNameSpace = $namespace;
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getFixtureName()
-    {
-        return $this->fixtureName;
-    }
-
-    /**
-     * @param string $fixtureName
-     *
-     * @return FixtureGenerator
-     */
-    public function setFixtureName($fixtureName)
-    {
-        $this->fixtureName = $fixtureName;
-        return $this;
-    }
-
-    /**
-     * @return ClassMetadataInfo
-     */
-    public function getMetadata()
-    {
-        return $this->metadata;
-    }
-
-    public function setMetadata(ClassMetadataInfo $metadata)
-    {
-        $this->metadata = $metadata;
-        return $this;
-    }
-
-    /**
-     * Sets the extension to use when writing php files to disk.
-     *
-     * @param string $extension
-     *
-     * @return void
-     */
-    public function setExtension($extension)
-    {
-        $this->extension = $extension;
-    }
-
-    /**
-     * Sets the number of spaces the exported class should have.
-     *
-     * @param integer $numSpaces
-     *
-     * @return void
-     */
-    public function setNumSpaces($numSpaces)
-    {
-        $this->spaces = str_repeat(' ', $numSpaces);
-        $this->numSpaces = $numSpaces;
-    }
-
-    /**
-     * Generates and writes entity class to disk for the given ClassMetadataInfo instance.
-     *
-     * @param string $outputDirectory
-     *
-     * @return void
-     *
-     * @throws \RuntimeException
-     */
-    public function writeFixtureClass($outputDirectory)
-    {
-        $path = $outputDirectory . '/' . str_replace(
-                '\\',
-                DIRECTORY_SEPARATOR,
-                $this->getFixtureName()
-            ) . $this->extension;
-        $dir = dirname($path);
-
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
-        }
-
-        $this->isNew = !file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
-
-        if ($this->backupExisting && file_exists($path)) {
-            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
-            if (!copy($path, $backupPath)) {
-                throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
-            }
-        }
-
-        file_put_contents($path, $this->generateFixtureClass());
-    }
-
-
-    /**
-     *
      * @param object $item
      *
      * @return string
@@ -398,7 +251,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $setValue = "";
                     $comment = "//";
                 } elseif (is_array($value)) {
-                    $setValue = "unserialize('".serialize($value)."')";
+                    $setValue = "unserialize('" . serialize($value) . "')";
                 } else {
                     $setValue = '"' . $value . '"';
                 }
@@ -406,9 +259,138 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
             }
         }
+
         return $code;
     }
 
+    /**
+     * @return string
+     */
+    public function getBundleNameSpace()
+    {
+        return $this->bundleNameSpace;
+    }
+
+    /**
+     * @param $namespace
+     *
+     * @return FixtureGenerator
+     */
+    public function setBundleNameSpace($namespace)
+    {
+        $this->bundleNameSpace = $namespace;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFixtureName()
+    {
+        return $this->fixtureName;
+    }
+
+    /**
+     * @param string $fixtureName
+     *
+     * @return FixtureGenerator
+     */
+    public function setFixtureName($fixtureName)
+    {
+        $this->fixtureName = $fixtureName;
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getItems()
+    {
+        return $this->items;
+    }
+
+    /**
+     * @param array $items
+     */
+    public function setItems(array $items)
+    {
+        $this->items = $items;
+    }
+
+    /**
+     * @return ClassMetadataInfo
+     */
+    public function getMetadata()
+    {
+        return $this->metadata;
+    }
+
+    public function setMetadata(ClassMetadataInfo $metadata)
+    {
+        $this->metadata = $metadata;
+
+        return $this;
+    }
+
+    /**
+     * Sets the extension to use when writing php files to disk.
+     *
+     * @param string $extension
+     *
+     * @return void
+     */
+    public function setExtension($extension)
+    {
+        $this->extension = $extension;
+    }
+
+    /**
+     * Sets the number of spaces the exported class should have.
+     *
+     * @param integer $numSpaces
+     *
+     * @return void
+     */
+    public function setNumSpaces($numSpaces)
+    {
+        $this->spaces = str_repeat(' ', $numSpaces);
+        $this->numSpaces = $numSpaces;
+    }
+
+    /**
+     * Generates and writes entity class to disk for the given ClassMetadataInfo instance.
+     *
+     * @param string $outputDirectory
+     *
+     * @return void
+     * @throws \RuntimeException
+     */
+    public function writeFixtureClass($outputDirectory)
+    {
+        $path = $outputDirectory . '/' . str_replace(
+                '\\',
+                DIRECTORY_SEPARATOR,
+                $this->getFixtureName()
+            ) . $this->extension;
+        $dir = dirname($path);
+
+        if ( ! is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+
+        $this->isNew = ! file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
+
+        if ($this->backupExisting && file_exists($path)) {
+            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
+            if ( ! copy($path, $backupPath)) {
+                throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
+            }
+        }
+
+        file_put_contents($path, $this->generateFixtureClass());
+    }
 
     /**
      * @param $item
@@ -437,19 +419,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $code;
     }
 
-    protected function generateFixtures()
-    {
-        $code = "";
-
-        foreach ($this->items as $item) {
-            $code .= $this->generateFixture($item);
-        }
-
-        return $code;
-    }
-
     /**
-     *
      * @return string
      */
     protected function generateFixtureBody()
@@ -458,14 +428,13 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $classpath = $this->getMetadata()->getName();
         $pos = strrpos($classpath, "\\");
 
-        $code = str_replace("<entityName>", substr($classpath, $pos+1), $code);
+        $code = str_replace("<entityName>", substr($classpath, $pos + 1), $code);
         $code = str_replace("<fixtures>", $this->generateFixtures(), $code);
+
         return $code;
     }
 
-
     /**
-     *
      * @return string
      */
     protected function generateFixtureClassName()
@@ -479,7 +448,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     }
 
     /**
-     *
      * @return string
      */
     protected function generateFixtureNamespace()
@@ -487,9 +455,31 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return 'namespace ' . $this->getNamespace() . ';';
     }
 
+    protected function generateFixtures()
+    {
+        $code = "";
+
+        foreach ($this->items as $item) {
+            $code .= $this->generateFixture($item);
+        }
+
+        return $code;
+    }
 
     /**
-     *
+     * @return int
+     */
+    protected function generateOrder()
+    {
+        return 1;
+    }
+
+    protected function generateUse()
+    {
+        return "use " . $this->getMetadata()->rootEntityName . ";";
+    }
+
+    /**
      * @return string
      */
     protected function getClassName()
@@ -519,7 +509,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
 
     /**
-     *
      * @return string
      */
     protected function getNamespace()

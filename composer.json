@@ -1,30 +1,42 @@
 {
-    "name": "webonaute/doctrine-fixtures-generator-bundle",
-    "description": "Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.",
-    "type": "symfony-bundle",
-    "keywords": ["development", "database", "fixture", "symfony", "symfony2", "generator", "dumper", "doctrine", "doctrine2", "tests", "migration"],
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Mathieu Delisle",
-            "email": "mdelisle@webonaute.ca"
-        }
-    ],
-    "support": {
-        "email": "mdelisle@webonaute.ca",
-        "issue": "https://github.com/Webonaute/DoctrineFixturesGeneratorBundle/issues",
-        "source": "https://github.com/Webonaute/DoctrineFixturesGeneratorBundle"
-    },
-    "require": {
-        "php": ">=5.3.3",
-        "symfony/framework-bundle": "~2.2",
-        "sensio/generator-bundle": "~2.3",
-        "doctrine/orm": "~2.2,>=2.2.3",
-        "doctrine/doctrine-bundle": "~1.2",
-        "doctrine/doctrine-fixtures-bundle": "2.2.*@dev"
-    },
-    "autoload": {
-        "psr-0": { "Webonaute\\DoctrineFixturesGeneratorBundle": "" }
-    },
-    "target-dir": "Webonaute/DoctrineFixturesGeneratorBundle"
+  "name": "webonaute/doctrine-fixtures-generator-bundle",
+  "description": "Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.",
+  "type": "symfony-bundle",
+  "keywords": [
+    "development",
+    "database",
+    "fixture",
+    "symfony",
+    "symfony2",
+    "generator",
+    "dumper",
+    "doctrine",
+    "doctrine2",
+    "tests",
+    "migration"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Mathieu Delisle",
+      "email": "mdelisle@webonaute.ca"
+    }
+  ],
+  "support": {
+    "email": "mdelisle@webonaute.ca",
+    "issue": "https://github.com/Webonaute/DoctrineFixturesGeneratorBundle/issues",
+    "source": "https://github.com/Webonaute/DoctrineFixturesGeneratorBundle"
+  },
+  "require": {
+    "php": ">=5.3.3",
+    "symfony/framework-bundle": "~2.2",
+    "sensio/generator-bundle": "~2.3",
+    "doctrine/orm": "~2.2,>=2.2.3",
+    "doctrine/doctrine-bundle": "~1.2",
+    "doctrine/doctrine-fixtures-bundle": "2.2.*@dev"
+  },
+  "autoload": {
+    "psr-0": {"Webonaute\\DoctrineFixturesGeneratorBundle": ""}
+  },
+  "target-dir": "Webonaute/DoctrineFixturesGeneratorBundle"
 }

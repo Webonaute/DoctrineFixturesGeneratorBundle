@@ -10,12 +10,13 @@ namespace FOS\TwitterBundle\Tests\DependencyInjection;
 
 class DoctrineFixturesGeneratorTest extends \PHPUnit_Framework_TestCase
 {
+
     /**
      * @todo.
      */
     public function testLoadFailed()
     {
-       $this->assertTrue(TRUE);
+        $this->assertTrue(true);
     }
 
 

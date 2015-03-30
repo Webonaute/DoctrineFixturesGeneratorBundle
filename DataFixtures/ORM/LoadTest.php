@@ -9,6 +9,7 @@ use Webonaute\DoctrineFixturesGeneratorBundle\Entity\Test;
 
 class LoadTest extends AbstractFixture implements OrderedFixtureInterface
 {
+
     /**
      * {@inheritDoc}
      */
