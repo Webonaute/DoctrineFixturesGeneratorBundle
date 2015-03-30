@@ -185,12 +185,12 @@ EOT
                 /** @var Kernel $kernel */
                 $kernel = $this->getContainer()->get('kernel');
                 //check if bundle exist.
-                $b = $kernel->getBundle($bundle);
+                $kernel->getBundle($bundle);
                 try {
                     //check if entity exist in the selected bundle.
-                    $entityObject = $this->getContainer()->get("doctrine")->getManager()->getRepository(
-                        $bundle . ":" . $entity
-                    );
+                    $this->getContainer()
+                        ->get("doctrine")->getManager()
+                        ->getRepository( $bundle . ":" . $entity);
                     break;
                 } catch (\Exception $e) {
                     $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
@@ -246,8 +246,6 @@ EOT
                     if (in_array($id, $ids)) {
                         throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
                     }
-
-                    //@todo validate id exist.
 
                     return $id;
                 }
