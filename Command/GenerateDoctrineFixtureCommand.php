@@ -13,10 +13,13 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Command;
 
 use Sensio\Bundle\GeneratorBundle\Command\GenerateDoctrineCommand;
 use Sensio\Bundle\GeneratorBundle\Command\Helper\DialogHelper;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Sensio\Bundle\GeneratorBundle\Command\Validators;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
@@ -93,19 +96,15 @@ EOT
     /**
      * @throws \InvalidArgumentException When the bundle doesn't end with Bundle (Example: "Bundle/MySampleBundle")
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface    $input, OutputInterface $output)
     {
-        $dialog =  $this->getHelper('dialog');
+        /** @var QuestionHelper $helper */
+        $helper = $this->getHelper('question');
 
         if ($input->isInteractive()) {
-            if ( ! $dialog->askConfirmation(
-                $output,
-                $dialog->getQuestion('Do you confirm generation', 'yes', '?'),
-                true
-            )
-            ) {
+            $question = new ConfirmationQuestion('Do you confirm generation? ', 'yes');
+            if ( !$helper->ask($input, $output, $question)) {
                 $output->writeln('<error>Command aborted</error>');
-
                 return 1;
             }
         }
@@ -115,7 +114,7 @@ EOT
         $name = $input->getOption('name');
         $ids = $this->parseIds($input->getOption('ids'));
 
-        $dialog->writeSection($output, 'Entity generation');
+        $this->writeSection($output, 'Entity generation');
         /** @var Kernel $kernel */
         $kernel = $this->getContainer()->get('kernel');
         $bundle = $kernel->getBundle($bundle);
@@ -125,7 +124,6 @@ EOT
 
         $output->writeln('Generating the fixture code: <info>OK</info>');
 
-        $dialog->writeGeneratorSummary($output, array());
 
         //all fine.
         return 0;
@@ -141,6 +139,15 @@ EOT
         return parent::getGenerator($bundle);
     }
 
+    public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
+    {
+        $output->writeln(array(
+            '',
+            $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
+            '',
+        ));
+    }
+
     /**
      * Interactive mode.
      *
@@ -149,8 +156,9 @@ EOT
      */
     protected function interact(InputInterface $input, OutputInterface $output)
     {
-        $dialog = $this->getDialogHelper();
-        $dialog->writeSection($output, 'Welcome to the Doctrine2 fixture generator');
+        /** @var QuestionHelper $helper */
+        $helper = $this->getHelper('question');
+        $this->writeSection($output, 'Welcome to the Doctrine2 fixture generator');
 
         // namespace
         $output->writeln(
@@ -168,15 +176,13 @@ EOT
         $kernel = $this->getContainer()->get('kernel');
         $bundleNames = array_keys($kernel->getBundles());
 
+        $attemp = 0;
         while (true) {
-            $entity = $dialog->askAndValidate(
-                $output,
-                $dialog->getQuestion('The Entity shortcut name', $input->getOption('entity')),
-                array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'),
-                false,
-                $input->getOption('entity'),
-                $bundleNames
-            );
+            $question = new Question('The Entity shortcut name : ', $input->getOption('entity'));
+            $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
+            $question->setMaxAttempts(5);
+            $question->setAutocompleterValues($bundleNames);
+            $entity = $helper->ask($input, $output, $question);
 
             list($bundle, $entity) = $this->parseShortcutNotation($entity);
 
@@ -203,10 +209,10 @@ EOT
         $input->setOption('entity', $bundle . ':' . $entity);
 
         // ids
-        $input->setOption('ids', $this->addIds($input, $output, $dialog));
+        $input->setOption('ids', $this->addIds($input, $output, $helper));
 
         // name
-        $input->setOption('name', $this->getFixtureName($input, $output, $dialog));
+        $input->setOption('name', $this->getFixtureName($input, $output, $helper));
 
         $count = count($input->getOption('ids'));
 
@@ -228,28 +234,29 @@ EOT
      *
      * @param InputInterface  $input
      * @param OutputInterface $output
-     * @param DialogHelper    $dialog
+     * @param QuestionHelper  $helper
      *
      * @return array
      */
-    private function addIds(InputInterface $input, OutputInterface $output, DialogHelper $dialog)
+    private function addIds(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
     {
         $ids = $this->parseIds($input->getOption('ids'));
 
         while (true) {
             $output->writeln('');
 
-            $id = $dialog->askAndValidate(
-                $output,
-                $dialog->getQuestion('New ID (press <return> to stop adding ids)', null),
-                function ($id) use ($ids) {
-                    if (in_array($id, $ids)) {
-                        throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
-                    }
-
-                    return $id;
+            $question = new Question('New ID (press <return> to stop adding ids) : ', null);
+            $question->setValidator(function ($id) use ($ids) {
+                if (in_array($id, $ids)) {
+                    throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
                 }
-            );
+
+                return $id;
+            });
+            $question->setMaxAttempts(5);
+
+            $id = $helper->ask($input, $output, $question);
+
             if ( ! $id) {
                 break;
             }
@@ -265,11 +272,11 @@ EOT
      *
      * @param InputInterface  $input
      * @param OutputInterface $output
-     * @param DialogHelper    $dialog
+     * @param QuestionHelper  $helper
      *
      * @return array
      */
-    private function getFixtureName(InputInterface $input, OutputInterface $output, DialogHelper $dialog)
+    private function getFixtureName(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
     {
         $name = $input->getOption('name');
 
@@ -277,17 +284,16 @@ EOT
         //should ask for the name.
         $output->writeln('');
 
-        $name = $dialog->askAndValidate(
-            $output,
-            $dialog->getQuestion('Fixture name', null),
-            function ($name) use ($input) {
-                if ($name == "" && count($input->getOption('ids')) > 1) {
-                    throw new \InvalidArgumentException('Name is require when using multiple IDs.');
-                }
-
-                return $name;
+        $question = new Question('Fixture name : ', null);
+        $question->setValidator(function ($name) use ($input) {
+            if ($name == "" && count($input->getOption('ids')) > 1) {
+                throw new \InvalidArgumentException('Name is require when using multiple IDs.');
             }
-        );
+
+            return $name;
+        });
+        $question->setMaxAttempts(5);
+        $name = $helper->ask($input, $output, $question);
 
         if ($name == "") {
             //use default name.
