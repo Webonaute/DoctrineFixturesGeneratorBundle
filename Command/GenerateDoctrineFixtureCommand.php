@@ -110,7 +110,7 @@ EOT
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($this->confirmGeneration == false) {
+        if ($this->confirmGeneration === false) {
             $output->writeln('<error>Command aborted</error>');
 
             return 1;
@@ -174,7 +174,6 @@ EOT
         $kernel = $this->getContainer()->get('kernel');
         $bundleNames = array_keys($kernel->getBundles());
 
-        $attemp = 0;
         while (true) {
 
             $question = new Question(
