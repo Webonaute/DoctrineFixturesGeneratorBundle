@@ -18,8 +18,8 @@ Features include:
 
 Version note
 -------------
-For symfony 2.3 and 2.4, use the version v1.0.*
-For symfony 2.5 and over, use the version v1.1.* or dev-master.
+- For symfony 2.3 and 2.4, use the version v1.0.*
+- For symfony 2.5 and over, use the version v1.1.* or dev-master.
 
 Documentation
 -------------
