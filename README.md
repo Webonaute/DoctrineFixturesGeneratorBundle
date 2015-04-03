@@ -16,6 +16,11 @@ Features include:
 
 **Caution:** This bundle is a development bundle and actually in high development itself and should not be use on production server.
 
+Version note
+-------------
+For symfony 2.3 and 2.4, use the version v1.0.*
+For symfony 2.5 and over, use the version v1.1.* or dev-master.
+
 Documentation
 -------------
 
