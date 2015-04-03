@@ -13,8 +13,8 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Command;
 
 use Sensio\Bundle\GeneratorBundle\Command\GenerateDoctrineCommand;
 use Sensio\Bundle\GeneratorBundle\Command\Helper\DialogHelper;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Sensio\Bundle\GeneratorBundle\Command\Validators;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -31,6 +31,17 @@ use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator
  */
 class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
 {
+
+    public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
+    {
+        $output->writeln(
+            array(
+                '',
+                $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
+                '',
+            )
+        );
+    }
 
     protected function configure()
     {
@@ -96,18 +107,17 @@ EOT
     /**
      * @throws \InvalidArgumentException When the bundle doesn't end with Bundle (Example: "Bundle/MySampleBundle")
      */
-    protected function execute(InputInterface    $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output)
     {
         /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
 
-        if ($input->isInteractive()) {
-            $question = new ConfirmationQuestion('Do you confirm generation? ', 'yes');
-            if ( !$helper->ask($input, $output, $question)) {
-                $output->writeln('<error>Command aborted</error>');
-                return 1;
-            }
+        if ( ! $input->getOption("confirmGeneration")) {
+            $output->writeln('<error>Command aborted</error>');
+
+            return 1;
         }
+
 
         $entity = Validators::validateEntityName($input->getOption('entity'));
         list($bundle, $entity) = $this->parseShortcutNotation($entity);
@@ -137,15 +147,6 @@ EOT
     protected function getGenerator(BundleInterface $bundle = null)
     {
         return parent::getGenerator($bundle);
-    }
-
-    public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
-    {
-        $output->writeln(array(
-            '',
-            $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
-            '',
-        ));
     }
 
     /**
@@ -178,15 +179,17 @@ EOT
 
         $attemp = 0;
         while (true) {
-            $question = new Question('The Entity shortcut name : ', $input->getOption('entity'));
+
+            $question = new Question(
+                'The Entity shortcut name' . ($input->getOption('entity') != "" ?
+                    " (" . $input->getOption('entity') . ")" : "") . ' : ', $input->getOption('entity')
+            );
             $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
             $question->setMaxAttempts(5);
             $question->setAutocompleterValues($bundleNames);
             $entity = $helper->ask($input, $output, $question);
 
             list($bundle, $entity) = $this->parseShortcutNotation($entity);
-
-
             try {
                 /** @var Kernel $kernel */
                 $kernel = $this->getContainer()->get('kernel');
@@ -194,11 +197,11 @@ EOT
                 $kernel->getBundle($bundle);
                 try {
                     //check if entity exist in the selected bundle.
-                    $this->getContainer()
-                        ->get("doctrine")->getManager()
-                        ->getRepository( $bundle . ":" . $entity);
+                    $em = $this->getContainer()->get("doctrine")->getManager();
+                    $em->getRepository($bundle . ":" . $entity);
                     break;
                 } catch (\Exception $e) {
+                    print $e->getMessage() . "\n\n";
                     $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
                 }
 
@@ -227,6 +230,10 @@ EOT
                 '',
             )
         );
+
+        $question = new ConfirmationQuestion('Do you confirm generation? ', false);
+        $input->setOption("confirmGeneration", $helper->ask($input, $output, $question));
+
     }
 
     /**
@@ -245,14 +252,19 @@ EOT
         while (true) {
             $output->writeln('');
 
-            $question = new Question('New ID (press <return> to stop adding ids) : ', null);
-            $question->setValidator(function ($id) use ($ids) {
-                if (in_array($id, $ids)) {
-                    throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
-                }
+            $question = new Question(
+                'New ID (press <return> to stop adding ids)' . (! empty($ids) ? " (" . implode(", ", $ids) . ")" : "")
+                . ' : ', null
+            );
+            $question->setValidator(
+                function ($id) use ($ids) {
+                    if (in_array($id, $ids)) {
+                        throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
+                    }
 
-                return $id;
-            });
+                    return $id;
+                }
+            );
             $question->setMaxAttempts(5);
 
             $id = $helper->ask($input, $output, $question);
@@ -284,14 +296,16 @@ EOT
         //should ask for the name.
         $output->writeln('');
 
-        $question = new Question('Fixture name : ', null);
-        $question->setValidator(function ($name) use ($input) {
-            if ($name == "" && count($input->getOption('ids')) > 1) {
-                throw new \InvalidArgumentException('Name is require when using multiple IDs.');
-            }
+        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', null);
+        $question->setValidator(
+            function ($name) use ($input) {
+                if ($name == "" && count($input->getOption('ids')) > 1) {
+                    throw new \InvalidArgumentException('Name is require when using multiple IDs.');
+                }
 
-            return $name;
-        });
+                return $name;
+            }
+        );
         $question->setMaxAttempts(5);
         $name = $helper->ask($input, $output, $question);
 
