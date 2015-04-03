@@ -12,7 +12,6 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Command;
 
 use Sensio\Bundle\GeneratorBundle\Command\GenerateDoctrineCommand;
-use Sensio\Bundle\GeneratorBundle\Command\Helper\DialogHelper;
 use Sensio\Bundle\GeneratorBundle\Command\Validators;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
@@ -104,20 +103,18 @@ EOT
         );
     }
 
+    protected $confirmGeneration = true;
+
     /**
      * @throws \InvalidArgumentException When the bundle doesn't end with Bundle (Example: "Bundle/MySampleBundle")
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        /** @var QuestionHelper $helper */
-        $helper = $this->getHelper('question');
-
-        if ( ! $input->getOption("confirmGeneration")) {
+        if ($this->confirmGeneration == false) {
             $output->writeln('<error>Command aborted</error>');
 
             return 1;
         }
-
 
         $entity = Validators::validateEntityName($input->getOption('entity'));
         list($bundle, $entity) = $this->parseShortcutNotation($entity);
@@ -231,8 +228,9 @@ EOT
             )
         );
 
+        $this->confirmGeneration = false;
         $question = new ConfirmationQuestion('Do you confirm generation? ', false);
-        $input->setOption("confirmGeneration", $helper->ask($input, $output, $question));
+        $this->confirmGeneration = $helper->ask($input, $output, $question);
 
     }
 
@@ -296,7 +294,7 @@ EOT
         //should ask for the name.
         $output->writeln('');
 
-        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', null);
+        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
         $question->setValidator(
             function ($name) use ($input) {
                 if ($name == "" && count($input->getOption('ids')) > 1) {
