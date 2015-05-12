@@ -57,7 +57,7 @@ class DoctrineFixtureGenerator extends Generator
      * @param string          $name
      * @param array           $ids
      */
-    public function generate(BundleInterface $bundle, $entity, $name, array $ids)
+    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order)
     {
         // configure the bundle (needed if the bundle does not contain any Entities yet)
         $config = $this->registry->getManager(null)->getConfiguration();
@@ -83,6 +83,7 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureGenerator->setFixtureName($fixtureFileName);
         $fixtureGenerator->setBundleNameSpace($bundleNameSpace);
         $fixtureGenerator->setMetadata($class);
+        $fixtureGenerator->setFixtureOrder($order);
 
         /** @var EntityManager $em */
         $em = $this->registry->getManager();

@@ -1,4 +1,5 @@
 <?php
+
 /* This file is part of the Webonaute package.
  *
  * (c) Mathieu Delisle <mdelisle@webonaute.ca>
@@ -24,14 +25,12 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo;
  *
  * @author  Mathieu Delisle <mdelisle@webonaute.ca>
  */
-class FixtureGenerator
-{
+class FixtureGenerator {
 
     /**
      * @var string
      */
-    protected static $classTemplate
-        = '<?php
+    protected static $classTemplate = '<?php
 
 <namespace>
 
@@ -65,8 +64,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @var string
      */
-    protected static $getItemFixtureTemplate
-        = '
+    protected static $getItemFixtureTemplate = '
     <spaces>$item<itemCount> = new <entityName>();<itemStubs>
     <spaces>$manager->persist($item<itemCount>);
 ';
@@ -74,8 +72,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @var string
      */
-    protected static $getLoadMethodTemplate
-        = '
+    protected static $getLoadMethodTemplate = '
 <spaces>/**
 <spaces> * {@inheritDoc}
 <spaces> */
@@ -143,6 +140,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $numSpaces = 4;
 
     /**
+     * Order of the fixture execution.
+     */
+    protected $fixtureorder = 1;
+
+    /**
      * The actual spaces to use for indention.
      *
      * @var string
@@ -157,9 +159,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * Constructor.
      */
-    public function __construct()
-    {
-
+    public function __construct() {
+        
     }
 
     /**
@@ -169,8 +170,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return void
      */
-    public function generate($outputDirectory)
-    {
+    public function generate($outputDirectory) {
         $this->writeFixtureClass($outputDirectory);
     }
 
@@ -179,8 +179,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return string
      */
-    public function generateFixtureClass()
-    {
+    public function generateFixtureClass() {
 
         if (is_null($this->getMetadata())) {
             throw new \RuntimeException("No metadata set.");
@@ -212,8 +211,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return string
      */
-    public function generateFixtureItemStub($item)
-    {
+    public function generateFixtureItemStub($item) {
         $id = $item->getId();
 
         $code = "";
@@ -252,6 +250,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $comment = "//";
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
+                } elseif (is_null($value)) {
+                    $setValue = "NULL";
                 } else {
                     $setValue = '"' . $value . '"';
                 }
@@ -266,8 +266,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    public function getBundleNameSpace()
-    {
+    public function getBundleNameSpace() {
         return $this->bundleNameSpace;
     }
 
@@ -276,8 +275,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return FixtureGenerator
      */
-    public function setBundleNameSpace($namespace)
-    {
+    public function setBundleNameSpace($namespace) {
         $this->bundleNameSpace = $namespace;
 
         return $this;
@@ -286,8 +284,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    public function getFixtureName()
-    {
+    public function getFixtureName() {
         return $this->fixtureName;
     }
 
@@ -296,9 +293,26 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return FixtureGenerator
      */
-    public function setFixtureName($fixtureName)
-    {
+    public function setFixtureName($fixtureName) {
         $this->fixtureName = $fixtureName;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFixtureOrder() {
+        return $this->fixtureorder;
+    }
+
+    /**
+     * @param string $fixtureOrder
+     *
+     * @return FixtureGenerator
+     */
+    public function setFixtureOrder($fixtureOrder) {
+        $this->fixtureorder = $fixtureOrder;
 
         return $this;
     }
@@ -306,29 +320,25 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return array
      */
-    public function getItems()
-    {
+    public function getItems() {
         return $this->items;
     }
 
     /**
      * @param array $items
      */
-    public function setItems(array $items)
-    {
+    public function setItems(array $items) {
         $this->items = $items;
     }
 
     /**
      * @return ClassMetadataInfo
      */
-    public function getMetadata()
-    {
+    public function getMetadata() {
         return $this->metadata;
     }
 
-    public function setMetadata(ClassMetadataInfo $metadata)
-    {
+    public function setMetadata(ClassMetadataInfo $metadata) {
         $this->metadata = $metadata;
 
         return $this;
@@ -341,8 +351,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return void
      */
-    public function setExtension($extension)
-    {
+    public function setExtension($extension) {
         $this->extension = $extension;
     }
 
@@ -353,8 +362,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return void
      */
-    public function setNumSpaces($numSpaces)
-    {
+    public function setNumSpaces($numSpaces) {
         $this->spaces = str_repeat(' ', $numSpaces);
         $this->numSpaces = $numSpaces;
     }
@@ -367,24 +375,21 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      * @return void
      * @throws \RuntimeException
      */
-    public function writeFixtureClass($outputDirectory)
-    {
+    public function writeFixtureClass($outputDirectory) {
         $path = $outputDirectory . '/' . str_replace(
-                '\\',
-                DIRECTORY_SEPARATOR,
-                $this->getFixtureName()
-            ) . $this->extension;
+                        '\\', DIRECTORY_SEPARATOR, $this->getFixtureName()
+                ) . $this->extension;
         $dir = dirname($path);
 
-        if ( ! is_dir($dir)) {
+        if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
         }
 
-        $this->isNew = ! file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
+        $this->isNew = !file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
 
         if ($this->backupExisting && file_exists($path)) {
             $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
-            if ( ! copy($path, $backupPath)) {
+            if (!copy($path, $backupPath)) {
                 throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
             }
         }
@@ -397,8 +402,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return string
      */
-    protected function generateFixture($item)
-    {
+    protected function generateFixture($item) {
 
         $placeHolders = array(
             '<itemCount>',
@@ -422,8 +426,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    protected function generateFixtureBody()
-    {
+    protected function generateFixtureBody() {
         $code = self::$getLoadMethodTemplate;
         $classpath = $this->getMetadata()->getName();
         $pos = strrpos($classpath, "\\");
@@ -437,26 +440,22 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    protected function generateFixtureClassName()
-    {
+    protected function generateFixtureClassName() {
         return 'class ' . $this->getClassName() . ' extends ' . $this->getClassToExtend();
     }
 
-    protected function generateFixtureLoadMethod(ClassMetadataInfo $metadata)
-    {
-
+    protected function generateFixtureLoadMethod(ClassMetadataInfo $metadata) {
+        
     }
 
     /**
      * @return string
      */
-    protected function generateFixtureNamespace()
-    {
+    protected function generateFixtureNamespace() {
         return 'namespace ' . $this->getNamespace() . ';';
     }
 
-    protected function generateFixtures()
-    {
+    protected function generateFixtures() {
         $code = "";
 
         foreach ($this->items as $item) {
@@ -469,29 +468,25 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return int
      */
-    protected function generateOrder()
-    {
-        return 1;
+    protected function generateOrder() {
+        return $this->fixtureorder;
     }
 
-    protected function generateUse()
-    {
+    protected function generateUse() {
         return "use " . $this->getMetadata()->rootEntityName . ";";
     }
 
     /**
      * @return string
      */
-    protected function getClassName()
-    {
+    protected function getClassName() {
         return $this->fixtureName;
     }
 
     /**
      * @return string
      */
-    protected function getClassToExtend()
-    {
+    protected function getClassToExtend() {
         return $this->classToExtend;
     }
 
@@ -502,17 +497,14 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      *
      * @return void
      */
-    public function setClassToExtend($classToExtend)
-    {
+    public function setClassToExtend($classToExtend) {
         $this->classToExtend = $classToExtend;
     }
-
 
     /**
      * @return string
      */
-    protected function getNamespace()
-    {
+    protected function getNamespace() {
         return $this->getBundleNameSpace() . '\DataFixture\ORM;';
     }
 

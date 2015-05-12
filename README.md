@@ -27,7 +27,7 @@ Documentation
 The bulk of the documentation is stored in the `Resources/doc/index.md`
 file in this bundle:
 
-[Read the Documentation for master](https://github.com/Webonaute/DoctrineFixturesGeneratorBundle/blob/master/Resources/doc/index.md)
+[Read the Documentation for master](https://github.com/ioniks/DoctrineFixturesGeneratorBundle/blob/master/Resources/doc/index.md)
 
 Installation
 ------------
