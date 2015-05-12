@@ -56,6 +56,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             )
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
             ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture')
+            ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture')
             ->setHelp(
                 <<<EOT
                 The <info>doctrine:generate:fixture</info> task generates a new Doctrine
@@ -120,14 +121,14 @@ EOT
         list($bundle, $entity) = $this->parseShortcutNotation($entity);
         $name = $input->getOption('name');
         $ids = $this->parseIds($input->getOption('ids'));
-
+        $order = $input->getOption('order');
         $this->writeSection($output, 'Entity generation');
         /** @var Kernel $kernel */
         $kernel = $this->getContainer()->get('kernel');
         $bundle = $kernel->getBundle($bundle);
 
         $generator = $this->getGenerator();
-        $generator->generate($bundle, $entity, $name, array_values($ids));
+        $generator->generate($bundle, $entity, $name, array_values($ids), $order);
 
         $output->writeln('Generating the fixture code: <info>OK</info>');
 
@@ -209,9 +210,13 @@ EOT
 
         // ids
         $input->setOption('ids', $this->addIds($input, $output, $helper));
-
+        
+        // Order
+        $input->setOption('order', $this->getFixtureOrder($input, $output, $helper));
+        
         // name
         $input->setOption('name', $this->getFixtureName($input, $output, $helper));
+        
 
         $count = count($input->getOption('ids'));
 
@@ -309,6 +314,40 @@ EOT
         if ($name == "") {
             //use default name.
             $name = null;
+        }
+
+        return $name;
+    }
+    
+    /**
+     * Interactive mode to add IDs list.
+     *
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     * @param QuestionHelper  $helper
+     *
+     * @return array
+     */
+    private function getFixtureOrder(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
+    {
+        $name = $input->getOption('order');
+
+
+        //should ask for the name.
+        $output->writeln('');
+
+        $question = new Question('Fixture order' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
+        $question->setValidator(
+            function ($name) use ($input) {
+                return $name;
+            }
+        );
+        $question->setMaxAttempts(5);
+        $name = $helper->ask($input, $output, $question);
+
+        if ($name == "") {
+            //use default name.
+            $name = 1;
         }
 
         return $name;
