@@ -143,6 +143,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $numSpaces = 4;
 
     /**
+     * Order of the fixture execution.
+     */
+    protected $fixtureorder = 1;
+
+    /**
      * The actual spaces to use for indention.
      *
      * @var string
@@ -252,6 +257,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $comment = "//";
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
+                } elseif (is_null($value)) {
+                    $setValue = "NULL";
                 } else {
                     $setValue = '"' . $value . '"';
                 }
@@ -269,6 +276,26 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     public function getBundleNameSpace()
     {
         return $this->bundleNameSpace;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFixtureOrder()
+    {
+        return $this->fixtureorder;
+    }
+
+    /**
+     * @param string $fixtureOrder
+     *
+     * @return FixtureGenerator
+     */
+    public function setFixtureOrder($fixtureOrder)
+    {
+        $this->fixtureorder = $fixtureOrder;
+
+        return $this;
     }
 
     /**
@@ -471,7 +498,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected function generateOrder()
     {
-        return 1;
+        return $this->fixtureorder;
     }
 
     protected function generateUse()
