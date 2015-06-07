@@ -45,7 +45,7 @@ public function registerBundles()
 
 ### Step 3: Generate your fixture.
 ``` bash
-$ php bin/console Doctrine:Generate:Fixture --entity=Blog:BlogPost --ids="12 534 124" --name="bug43"
+$ php bin/console doctrine:generate:fixture --entity=Blog:BlogPost --ids="12 534 124" --name="bug43"
 ```
 
 Then edit your new fixture BlogBundle/DataFixture/Orm/LoadBug43.php.
