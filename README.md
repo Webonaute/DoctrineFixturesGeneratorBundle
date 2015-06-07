@@ -11,6 +11,7 @@ Features include:
 
 - Create fixture from existing entity data.
 - Option to specify the exact IDs to import in your fixture.
+- Manually set load order for a fixture from command line. (Thanks to [ioniks](https://github.com/ioniks))
 - @todo Generate fixture reference when any other entity is link to this entity.
 - @todo Automatically set the load order (actually set to 1 and need to be change by hand.)
 
