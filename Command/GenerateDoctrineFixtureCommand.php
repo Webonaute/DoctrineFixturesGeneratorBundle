@@ -330,15 +330,19 @@ EOT
      */
     private function getFixtureOrder(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
     {
-        $name = $input->getOption('order');
+        $order = $input->getOption('order');
 
         //should ask for the name.
         $output->writeln('');
 
-        $question = new Question('Fixture order' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
+        $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
         $question->setValidator(
-            function ($name) use ($input) {
-                return $name;
+            function ($order){
+                if (preg_match("/^[1-9][0-9]*$/",$order)){
+                    throw new \InvalidArgumentException('Order should be an integer >= 0.');
+                }
+                //ensure it return number.
+                return intval($order);
             }
         );
         $question->setMaxAttempts(5);
