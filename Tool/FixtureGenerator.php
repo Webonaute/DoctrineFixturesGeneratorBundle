@@ -155,6 +155,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected $staticReflection = array();
 
     /**
+     * @var string
+     */
+    protected $referencePrefix = '_reference_';
+
+    /**
      * Constructor.
      */
     public function __construct()
@@ -248,8 +253,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value)) {
                     //check reference.
-                    $setValue = "";
-                    $comment = "//";
+                    $relatedReflexion = new \ReflectionClass($value);
+                    $relatedId = $value->getId();
+                    $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}_{$relatedId}')";
+                    $comment = "";
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
                 } else {
@@ -259,6 +266,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
             }
         }
+
+        $code .= "\n\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}_{$id}', \$item{$id});\n";
 
         return $code;
     }
