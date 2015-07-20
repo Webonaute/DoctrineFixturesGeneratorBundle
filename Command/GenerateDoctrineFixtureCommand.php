@@ -43,6 +43,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             )
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
             ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture')
+            ->addOption('connectionName', null, InputOption::VALUE_OPTIONAL, 'Give a specific connection name if you use multiple connectors ')
             ->setHelp(
                 <<<EOT
                 The <info>doctrine:generate:fixture</info> task generates a new Doctrine
@@ -121,7 +122,8 @@ EOT
         $bundle = $kernel->getBundle($bundle);
 
         $generator = $this->getGenerator();
-        $generator->generate($bundle, $entity, $name, array_values($ids));
+        $connectionName = $input->getOption('connectionName');
+        $generator->generate($bundle, $entity, $name, array_values($ids), $connectionName);
 
         $output->writeln('Generating the fixture code: <info>OK</info>');
 
