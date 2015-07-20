@@ -169,7 +169,6 @@ EOT
         /** @var Kernel $kernel */
         $kernel = $this->getContainer()->get('kernel');
         $bundleNames = array_keys($kernel->getBundles());
-
         while (true) {
             $entity = $dialog->askAndValidate(
                 $output,
@@ -182,16 +181,16 @@ EOT
 
             list($bundle, $entity) = $this->parseShortcutNotation($entity);
 
-
             try {
                 /** @var Kernel $kernel */
                 $kernel = $this->getContainer()->get('kernel');
                 //check if bundle exist.
                 $kernel->getBundle($bundle);
                 try {
+                    $connectionName = $input->getOption('connectionName');
                     //check if entity exist in the selected bundle.
                     $this->getContainer()
-                        ->get("doctrine")->getManager()
+                        ->get("doctrine")->getManager($connectionName)
                         ->getRepository( $bundle . ":" . $entity);
                     break;
                 } catch (\Exception $e) {
