@@ -56,11 +56,12 @@ class DoctrineFixtureGenerator extends Generator
      * @param string          $entity
      * @param string          $name
      * @param array           $ids
+     * @param string|null     $connectionName
      */
-    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order)
+    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null)
     {
         // configure the bundle (needed if the bundle does not contain any Entities yet)
-        $config = $this->registry->getManager(null)->getConfiguration();
+        $config = $this->registry->getManager($connectionName)->getConfiguration();
         $config->setEntityNamespaces(
             array_merge(
                 array($bundle->getName() => $bundle->getNamespace() . '\\Entity'),
@@ -86,7 +87,7 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureGenerator->setFixtureOrder($order);
 
         /** @var EntityManager $em */
-        $em = $this->registry->getManager();
+        $em = $this->registry->getManager($connectionName);
 
         $repo = $em->getRepository($class->rootEntityName);
         if (empty($ids)) {

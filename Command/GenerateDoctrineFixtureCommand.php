@@ -57,6 +57,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
             ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture')
             ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture')
+            ->addOption('connectionName', null, InputOption::VALUE_OPTIONAL, 'Give a specific connection name if you use multiple connectors ')
             ->setHelp(
                 <<<EOT
                 The <info>doctrine:generate:fixture</info> task generates a new Doctrine
@@ -129,7 +130,8 @@ EOT
         $bundle = $kernel->getBundle($bundle);
 
         $generator = $this->getGenerator();
-        $generator->generate($bundle, $entity, $name, array_values($ids), $order);
+        $connectionName = $input->getOption('connectionName');
+        $generator->generate($bundle, $entity, $name, array_values($ids), $order, $connectionName);
 
         $output->writeln('Generating the fixture code: <info>OK</info>');
 
@@ -175,7 +177,6 @@ EOT
         /** @var Kernel $kernel */
         $kernel = $this->getContainer()->get('kernel');
         $bundleNames = array_keys($kernel->getBundles());
-
         while (true) {
 
             $question = new Question(
@@ -188,15 +189,18 @@ EOT
             $entity = $helper->ask($input, $output, $question);
 
             list($bundle, $entity) = $this->parseShortcutNotation($entity);
+            
             try {
                 /** @var Kernel $kernel */
                 $kernel = $this->getContainer()->get('kernel');
                 //check if bundle exist.
                 $kernel->getBundle($bundle);
                 try {
+                    $connectionName = $input->getOption('connectionName');
                     //check if entity exist in the selected bundle.
-                    $em = $this->getContainer()->get("doctrine")->getManager();
-                    $em->getRepository($bundle . ":" . $entity);
+                    $this->getContainer()
+                        ->get("doctrine")->getManager($connectionName)
+                        ->getRepository( $bundle . ":" . $entity);
                     break;
                 } catch (\Exception $e) {
                     print $e->getMessage() . "\n\n";
