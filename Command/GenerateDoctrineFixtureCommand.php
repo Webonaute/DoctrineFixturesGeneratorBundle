@@ -379,8 +379,8 @@ EOT
             foreach (explode(' ', $input) as $value) {
                 $value = trim($value);
                 if (strlen($value) > 0) {
-                    // if range like '5-9', merge it's range with ids
-                    // of course, ranges can be built from numeric variables
+                    // if range is '5-9', make range(5, 9) and merge it with ids
+                    // of course, ranges can be built from numeric variables only
                     if (false !== strpos($value, '-')) {
                         list($begin, $end) = explode('-', $value);
                         if (is_numeric($end) && is_numeric($begin)) {
