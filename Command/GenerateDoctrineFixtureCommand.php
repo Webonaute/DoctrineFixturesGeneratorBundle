@@ -79,7 +79,7 @@ namespace <info>Acme\BlogBundle\DataFixtures\ORM\LoadAddress12</info>.
 You can also optionally specify the fixture name of the new entity fixture.
 (You can give for example the ticket number of what the fixture is for.):
 
-<info>php app/console doctrine:generate:fixture --entity=AcmeDemoBundle:Address --ids="12" --name="ticket2224"</info>
+<info>php app/console doctrine:generate:fixture --entity=AcmeDemoBundle:Address --ids="12 15-21" --name="ticket2224"</info>
 
 The above command would initialize a new entity fixture in the following entity
 namespace <info>Acme\BlogBundle\DataFixture\ORM\LoadTicket2224</info>.
@@ -379,6 +379,17 @@ EOT
             foreach (explode(' ', $input) as $value) {
                 $value = trim($value);
                 if (strlen($value) > 0) {
+                    // if range like '5-9', merge it's range with ids
+                    // of course, ranges can be built from numeric variables
+                    if (false !== strpos($value, '-')) {
+                        list($begin, $end) = explode('-', $value);
+                        if (is_numeric($end) && is_numeric($begin)) {
+                            $end = intval($end);
+                            $begin = intval($begin);
+                            $ids = array_merge($ids, range($begin, $end));
+                        }
+                    }
+
                     $ids[] = trim($value);
                 }
             }
