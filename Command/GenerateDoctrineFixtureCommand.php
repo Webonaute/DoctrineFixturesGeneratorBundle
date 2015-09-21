@@ -57,7 +57,12 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
             ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture')
             ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture')
-            ->addOption('connectionName', null, InputOption::VALUE_OPTIONAL, 'Give a specific connection name if you use multiple connectors ')
+            ->addOption(
+                'connectionName',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Give a specific connection name if you use multiple connectors '
+            )
             ->setHelp(
                 <<<EOT
                 The <info>doctrine:generate:fixture</info> task generates a new Doctrine
@@ -189,7 +194,7 @@ EOT
             $entity = $helper->ask($input, $output, $question);
 
             list($bundle, $entity) = $this->parseShortcutNotation($entity);
-            
+
             try {
                 /** @var Kernel $kernel */
                 $kernel = $this->getContainer()->get('kernel');
@@ -200,7 +205,7 @@ EOT
                     //check if entity exist in the selected bundle.
                     $this->getContainer()
                         ->get("doctrine")->getManager($connectionName)
-                        ->getRepository( $bundle . ":" . $entity);
+                        ->getRepository($bundle . ":" . $entity);
                     break;
                 } catch (\Exception $e) {
                     print $e->getMessage() . "\n\n";
@@ -341,10 +346,11 @@ EOT
 
         $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
         $question->setValidator(
-            function ($order){
-                if (preg_match("/^[1-9][0-9]*$/",$order)){
+            function ($order) {
+                if (preg_match("/^[1-9][0-9]*$/", $order)) {
                     throw new \InvalidArgumentException('Order should be an integer >= 0.');
                 }
+
                 //ensure it return number.
                 return intval($order);
             }
@@ -358,6 +364,41 @@ EOT
         }
 
         return $name;
+    }
+
+    /**
+     * Check if a string contain a range ids string.
+     *
+     * @param $string
+     *
+     * @return bool
+     */
+    private function isRangeIds($string)
+    {
+        return (false !== strpos($string, '-'));
+    }
+
+    /**
+     * extract ids from ranges.
+     *
+     * @param $string
+     *
+     * @return array
+     */
+    private function extractRangeIds($string)
+    {
+        $rangesIds = explode('-', $string);
+        $result = array();
+        //validate array should have 2 values and those 2 values are integer.
+        if (count($rangesIds) == 2) {
+            $begin = intval($rangesIds[0]);
+            $end = intval($rangesIds[1]);
+            if ($begin > 0 && $end > 0) {
+                $result = range($begin, $end);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -375,25 +416,32 @@ EOT
             return $input;
         }
 
+        //check if the input is not empty.
         if (strlen($input) > 0) {
-            foreach (explode(' ', $input) as $value) {
+            $values = explode(' ', $input);
+            //extract ids for each value found.
+            foreach ($values as $value) {
+                //filter any extra space.
                 $value = trim($value);
+                //filter empty values.
                 if (strlen($value) > 0) {
-                    // if range is '5-9', make range(5, 9) and merge it with ids
-                    // of course, ranges can be built from numeric variables only
-                    if (false !== strpos($value, '-')) {
-                        list($begin, $end) = explode('-', $value);
-                        if (is_numeric($end) && is_numeric($begin)) {
-                            $end = intval($end);
-                            $begin = intval($begin);
-                            $ids = array_merge($ids, range($begin, $end));
+                    //check if the value is a range ids.
+                    if ($this->isRangeIds($value)) {
+                        $ids = array_merge($ids, $this->extractRangeIds($value));
+                    } else {
+                        //make sure id is an integer.
+                        $value = intval($value);
+                        //make sure id are bigger than 0.
+                        if ($value > 0) {
+                            $ids[] = $value;
                         }
                     }
-
-                    $ids[] = trim($value);
                 }
             }
         }
+
+        //make sure ids are unique.
+        $ids = array_unique($ids);
 
         return $ids;
     }
