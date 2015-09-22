@@ -281,7 +281,7 @@ EOT
                         } else {
                             $msg = sprintf('Id "%s" is already defined.', $id);
                         }
-                        throw new \InvalidArgumentException();
+                        throw new \InvalidArgumentException($msg);
                     }
 
                     return $inputIds;
