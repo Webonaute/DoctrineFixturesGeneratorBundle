@@ -262,29 +262,40 @@ EOT
 
         while (true) {
             $output->writeln('');
-
             $question = new Question(
                 'New ID (press <return> to stop adding ids)' . (! empty($ids) ? " (" . implode(", ", $ids) . ")" : "")
                 . ' : ', null
             );
             $question->setValidator(
                 function ($id) use ($ids) {
-                    if (in_array($id, $ids)) {
-                        throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
+                    $inputIds = $this->parseIds($id);
+
+                    // If given id or range of ids are already present in defined range
+                    if ($duplicateIds = array_intersect($inputIds, $ids)) {
+                        // If input for example "5-9"
+                        if ($this->isRangeIds($id)) {
+                            // whether there is only one or more duplicate numbers from given range
+                            $idsWord = count($duplicateIds) > 1? 'Ids' : 'Id';
+                            $duplicateIdsString = implode(', ', $duplicateIds);
+                            $msg = sprintf($idsWord.' "%s" from given range "%s" is already defined.', $duplicateIdsString, $id);
+                        } else {
+                            $msg = sprintf('Id "%s" is already defined.', $id);
+                        }
+                        throw new \InvalidArgumentException($msg);
                     }
 
-                    return $id;
+                    return $inputIds;
                 }
             );
+
             $question->setMaxAttempts(5);
+            $inputIds = $helper->ask($input, $output, $question);
 
-            $id = $helper->ask($input, $output, $question);
-
-            if ( ! $id) {
+            if ( ! $inputIds) {
                 break;
             }
 
-            $ids[] = $id;
+            $ids = array_merge($ids, $inputIds);
         }
 
         return $ids;
@@ -347,7 +358,7 @@ EOT
         $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
         $question->setValidator(
             function ($order) {
-                if (preg_match("/^[1-9][0-9]*$/", $order)) {
+                if (!preg_match("/^[1-9][0-9]*$/", $order)) {
                     throw new \InvalidArgumentException('Order should be an integer >= 0.');
                 }
 
