@@ -256,13 +256,17 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     }
                 } elseif ($value instanceof \DateTime) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
-                } elseif (is_object($value)) {
+                } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     //check reference.
                     $relatedReflexion = new \ReflectionClass($value);
                     $relatedId = $value->getId();
                     $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}_{$relatedId}')";
                     $comment = "";
-                } elseif (is_array($value)) {
+                }
+                elseif(is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection"){
+                    $setValue = "unserialize('" . serialize($value->getSnapshot()) . "')";
+                }
+                elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
