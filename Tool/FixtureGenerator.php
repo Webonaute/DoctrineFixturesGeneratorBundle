@@ -273,7 +273,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } else {
                     $setValue = "<<<'EOT'\n$value\nEOT" . PHP_EOL;
                 }
-
                 $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
             }
         }
@@ -492,7 +491,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected function generateFixtureNamespace()
     {
-        return 'namespace ' . $this->getNamespace() . ';';
+        $namespace = 'namespace ' . $this->getNamespace();
+        if (strpos($namespace, ';')) {
+            return $namespace;
+        }
+        return $namespace . ';';
     }
 
     protected function generateFixtures()
