@@ -492,10 +492,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     protected function generateFixtureNamespace()
     {
         $namespace = 'namespace ' . $this->getNamespace();
-        if (strpos($namespace, ';')) {
-            return $namespace;
+        if (strpos($namespace, ';') === false) {
+            $namespace . ';';
         }
-        return $namespace . ';';
+        return $namespace;
     }
 
     protected function generateFixtures()
