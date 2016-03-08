@@ -347,7 +347,7 @@ EOT
         $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
         $question->setValidator(
             function ($order) {
-                if (preg_match("/^[1-9][0-9]*$/", $order)) {
+                if (!is_int($order)) {
                     throw new \InvalidArgumentException('Order should be an integer >= 0.');
                 }
 
