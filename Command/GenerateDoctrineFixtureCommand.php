@@ -242,7 +242,7 @@ EOT
         );
 
         $this->confirmGeneration = false;
-        $question = new ConfirmationQuestion('Do you confirm generation? ', false);
+        $question = new ConfirmationQuestion('Do you confirm generation? (y/N) ', false);
         $this->confirmGeneration = $helper->ask($input, $output, $question);
 
     }
@@ -358,7 +358,7 @@ EOT
         $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
         $question->setValidator(
             function ($order) {
-                if (!preg_match("/^[1-9][0-9]*$/", $order)) {
+                if (!preg_match("/^[0-9]+$/", $order)) {
                     throw new \InvalidArgumentException('Order should be an integer >= 0.');
                 }
 
