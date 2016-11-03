@@ -11,6 +11,9 @@
 
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Command;
 
+use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Sensio\Bundle\GeneratorBundle\Command\GenerateDoctrineCommand;
 use Sensio\Bundle\GeneratorBundle\Command\Validators;
 use Symfony\Component\Console\Helper\QuestionHelper;
@@ -21,6 +24,7 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
 
 /**
@@ -31,16 +35,15 @@ use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator
 class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
 {
 
-    public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
-    {
-        $output->writeln(
-            array(
-                '',
-                $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
-                '',
-            )
-        );
-    }
+    /**
+     * @var bool
+     */
+    protected $confirmGeneration = true;
+
+    /**
+     * @var bool
+     */
+    protected $snapshot = false;
 
     protected function configure()
     {
@@ -54,9 +57,11 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
                 InputOption::VALUE_REQUIRED,
                 'The entity class name to initialize (shortcut notation)'
             )
+            ->addOption('snapshot', null, InputOption::VALUE_NONE, 'Create a full snapshot of DB.')
+            ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Overwrite entity fixture file if already exist.')
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
-            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture')
-            ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture')
+            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture or a prefix with snapshot option.')
+            ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture.')
             ->addOption(
                 'connectionName',
                 null,
@@ -110,36 +115,57 @@ EOT
         );
     }
 
-    protected $confirmGeneration = true;
-
     /**
      * @throws \InvalidArgumentException When the bundle doesn't end with Bundle (Example: "Bundle/MySampleBundle")
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        if ($this->confirmGeneration === false) {
-            $output->writeln('<error>Command aborted</error>');
+        $this->snapshot = $input->getOption("snapshot");
 
+        if ($this->confirmGeneration === false && $this->snapshot === false) {
+            $output->writeln('<error>Command aborted</error>');
             return 1;
         }
 
-        $entity = Validators::validateEntityName($input->getOption('entity'));
-        list($bundle, $entity) = $this->parseShortcutNotation($entity);
-        $name = $input->getOption('name');
-        $ids = $this->parseIds($input->getOption('ids'));
-        $order = $input->getOption('order');
-
-        $this->writeSection($output, 'Entity generation');
-        /** @var Kernel $kernel */
-        $kernel = $this->getContainer()->get('kernel');
-        $bundle = $kernel->getBundle($bundle);
-
-        $generator = $this->getGenerator();
         $connectionName = $input->getOption('connectionName');
-        $generator->generate($bundle, $entity, $name, array_values($ids), $order, $connectionName);
+        $name = $input->getOption('name');
+        $generator = $this->getGenerator();
+        $overwrite = $input->getOption("overwrite");
 
-        $output->writeln('Generating the fixture code: <info>OK</info>');
+        if ($this->snapshot === true) {
+            $entitiesMetadata = $this->getEntitiesMetadata($connectionName);
+            $entities = $this->getOrderedEntities($entitiesMetadata, $connectionName);
 
+            if (!empty($entities)) {
+                foreach ($entities as $entity) {
+                    $generator->generate(
+                        $entity->bundle,
+                        $entity->name,
+                        $generator->getFixtureNameFromEntityName($entity->name, [], $name),
+                        [], //not applicable in snapshot mode.
+                        $entity->level,
+                        $connectionName,
+                        $overwrite,
+                        true
+                    );
+                }
+            }
+        } else {
+            $entity = Validators::validateEntityName($input->getOption('entity'));
+            list($bundle, $entity) = $this->parseShortcutNotation($entity);
+            $name = $input->getOption('name');
+            $ids = $this->parseIds($input->getOption('ids'));
+            $order = $input->getOption('order');
+
+            $this->writeSection($output, 'Entity generation');
+            /** @var Kernel $kernel */
+            $kernel = $this->getContainer()->get('kernel');
+            $bundle = $kernel->getBundle($bundle);
+
+            $generator->generate($bundle, $entity, $name, array_values($ids), $order, $connectionName, $overwrite);
+
+            $output->writeln('Generating the fixture code: <info>OK</info>');
+        }
 
         //all fine.
         return 0;
@@ -155,250 +181,147 @@ EOT
         return parent::getGenerator($bundle);
     }
 
-    /**
-     * Interactive mode.
-     *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     */
-    protected function interact(InputInterface $input, OutputInterface $output)
+    protected function getEntitiesMetadata($connectionName = "default")
     {
-        /** @var QuestionHelper $helper */
-        $helper = $this->getHelper('question');
-        $this->writeSection($output, 'Welcome to the Doctrine2 fixture generator');
+        $classes = [];
 
-        // namespace
-        $output->writeln(
-            array(
-                '',
-                'This command helps you generate Doctrine2 fixture.',
-                '',
-                'First, you need to give the entity name you want to generate fixture from.',
-                'You must use the shortcut notation like <comment>AcmeBlogBundle:Post</comment>.',
-                ''
-            )
-        );
+        $em = $this->getContainer()->get('doctrine')->getManager($connectionName);
+        $mf = $em->getMetadataFactory();
 
-        /** @var Kernel $kernel */
-        $kernel = $this->getContainer()->get('kernel');
-        $bundleNames = array_keys($kernel->getBundles());
-        while (true) {
+        $metas = $mf->getAllMetadata();
 
-            $question = new Question(
-                'The Entity shortcut name' . ($input->getOption('entity') != "" ?
-                    " (" . $input->getOption('entity') . ")" : "") . ' : ', $input->getOption('entity')
-            );
-            $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
-            $question->setMaxAttempts(5);
-            $question->setAutocompleterValues($bundleNames);
-            $entity = $helper->ask($input, $output, $question);
-
-            list($bundle, $entity) = $this->parseShortcutNotation($entity);
-
-            try {
-                /** @var Kernel $kernel */
-                $kernel = $this->getContainer()->get('kernel');
-                //check if bundle exist.
-                $kernel->getBundle($bundle);
-                try {
-                    $connectionName = $input->getOption('connectionName');
-                    //check if entity exist in the selected bundle.
-                    $this->getContainer()
-                        ->get("doctrine")->getManager($connectionName)
-                        ->getRepository($bundle . ":" . $entity);
-                    break;
-                } catch (\Exception $e) {
-                    print $e->getMessage() . "\n\n";
-                    $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
-                }
-
-            } catch (\Exception $e) {
-                $output->writeln(sprintf('<bg=red>Bundle "%s" does not exist.</>', $bundle));
+        /** @var ClassMetadata $meta */
+        foreach ($metas as $meta) {
+            if ($meta->isMappedSuperclass ||
+                ($meta->isInheritanceTypeSingleTable() && $meta->name != $meta->rootEntityName)
+            ) {
+                continue;
             }
+
+            //ignore vendor entities.
+            // @todo data for entities in vendor directory should be created in a specified bundle container
+            // in src folder. Maybe add an options in the command who user can specify which bundle should store those.
+            $class = $meta->getReflectionClass();
+            if (strpos($class->getFileName(), "/vendor/")) {
+                continue;
+            }
+
+            $classes[] = $meta;
         }
-        $input->setOption('entity', $bundle . ':' . $entity);
 
-        // ids
-        $input->setOption('ids', $this->addIds($input, $output, $helper));
-
-        // name
-        $input->setOption('name', $this->getFixtureName($input, $output, $helper));
-
-        // Order
-        $input->setOption('order', $this->getFixtureOrder($input, $output, $helper));
-
-        $count = count($input->getOption('ids'));
-
-        // summary
-        $output->writeln(
-            array(
-                '',
-                $this->getHelper('formatter')->formatBlock('Summary before generation', 'bg=blue;fg=white', true),
-                '',
-                sprintf("You are going to generate  \"<info>%s:%s</info>\" fixtures", $bundle, $entity),
-                sprintf("using the \"<info>%s</info>\" ids.", $count),
-                '',
-            )
-        );
-
-        $this->confirmGeneration = false;
-        $question = new ConfirmationQuestion('Do you confirm generation? ', false);
-        $this->confirmGeneration = $helper->ask($input, $output, $question);
-
+        return $classes;
     }
 
     /**
-     * Interactive mode to add IDs list.
      *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     * @param QuestionHelper  $helper
-     *
+     * @param array $metadatas
      * @return array
      */
-    private function addIds(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
+    protected function getOrderedEntities(array $metadatas, $connectionName = "default")
     {
-        $ids = $this->parseIds($input->getOption('ids'));
+        $level = 1;
+        $countMeta = count($metadatas);
+        $entities = [];
+        /** @var EntityManager $em */
+        $em = $this->getContainer()->get('doctrine')->getManager($connectionName);
+        $namespaces = $em->getConfiguration()->getEntityNamespaces();
 
-        while (true) {
-            $output->writeln('');
+        do {
+            //for each meta,
+            /**
+             * @var int $mkey
+             * @var ClassMetadata $meta
+             */
+            foreach ($metadatas as $mkey => $meta) {
+                $name = $meta->getName();
+                if ($this->isEntityLevelReached($meta, $entities)) {
+                    $entity = new \stdClass();
+                    $entity->level = $level;
+                    $entity->name = $meta->getName();
+                    $entity->bundle = $this->findBundleInterface($namespaces, $meta->namespace);;
+                    $entity->meta = $meta;
+                    $entities[] = $entity;
 
-            $question = new Question(
-                'New ID (press <return> to stop adding ids)' . (! empty($ids) ? " (" . implode(", ", $ids) . ")" : "")
-                . ' : ', null
-            );
-            $question->setValidator(
-                function ($id) use ($ids) {
-                    if (in_array($id, $ids)) {
-                        throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
-                    }
-
-                    return $id;
+                    //remove from meta to process.
+                    unset($metadatas[$mkey]);
                 }
-            );
-            $question->setMaxAttempts(5);
-
-            $id = $helper->ask($input, $output, $question);
-
-            if ( ! $id) {
-                break;
             }
+            $level++;
+            //repeat until all metadata are processed.
+            //it can't have more level than number of entities so break if $level is superior to $countMeta.
+        } while (!empty($metadatas) && $level <= $countMeta);
 
-            $ids[] = $id;
-        }
-
-        return $ids;
+        return $entities;
     }
 
     /**
-     * Interactive mode to add IDs list.
-     *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     * @param QuestionHelper  $helper
-     *
-     * @return array
-     */
-    private function getFixtureName(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
-    {
-        $name = $input->getOption('name');
-
-
-        //should ask for the name.
-        $output->writeln('');
-
-        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
-        $question->setValidator(
-            function ($name) use ($input) {
-                if ($name == "" && count($input->getOption('ids')) > 1) {
-                    throw new \InvalidArgumentException('Name is require when using multiple IDs.');
-                }
-
-                return $name;
-            }
-        );
-        $question->setMaxAttempts(5);
-        $name = $helper->ask($input, $output, $question);
-
-        if ($name == "") {
-            //use default name.
-            $name = null;
-        }
-
-        return $name;
-    }
-
-    /**
-     * Interactive mode to add IDs list.
-     *
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     * @param QuestionHelper  $helper
-     *
-     * @return array
-     */
-    private function getFixtureOrder(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
-    {
-        $order = $input->getOption('order');
-
-        //should ask for the name.
-        $output->writeln('');
-
-        $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
-        $question->setValidator(
-            function ($order) {
-                if (preg_match("/^[1-9][0-9]*$/", $order)) {
-                    throw new \InvalidArgumentException('Order should be an integer >= 0.');
-                }
-
-                //ensure it return number.
-                return intval($order);
-            }
-        );
-        $question->setMaxAttempts(5);
-        $name = $helper->ask($input, $output, $question);
-
-        if ($name == "") {
-            //use default name.
-            $name = 1;
-        }
-
-        return $name;
-    }
-
-    /**
-     * Check if a string contain a range ids string.
-     *
-     * @param $string
-     *
+     * @param ClassMetadata $meta
+     * @param array $entities
      * @return bool
      */
-    private function isRangeIds($string)
-    {
-        return (false !== strpos($string, '-'));
-    }
+    protected function isEntityLevelReached(ClassMetadata $meta, array $entities){
+        $name = $meta->getName();
+        $mappings = $meta->getAssociationMappings();
+        $reader = new AnnotationReader();
 
-    /**
-     * extract ids from ranges.
-     *
-     * @param $string
-     *
-     * @return array
-     */
-    private function extractRangeIds($string)
-    {
-        $rangesIds = explode('-', $string);
-        $result = array();
-        //validate array should have 2 values and those 2 values are integer.
-        if (count($rangesIds) == 2) {
-            $begin = intval($rangesIds[0]);
-            $end = intval($rangesIds[1]);
-            if ($begin > 0 && $end > 0) {
-                $result = range($begin, $end);
+        //if there is association, check if entity is already included to satisfy the requirement.
+        if (count($mappings) > 0){
+            foreach ($mappings as $mapping){
+                $propertyReflection = $meta->getReflectionProperty($mapping['fieldName']);
+                /** @var Property $propertyAnnotation */
+                $propertyAnnotation = $reader->getPropertyAnnotation(
+                    $propertyReflection,
+                    'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
+                );
+
+                if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true){
+                    //ignore this mapping. (data will not be exported for that field.)
+                    continue;
+                }
+
+                //prevent self mapping loop.
+                if ($mapping['targetEntity'] === $mapping['sourceEntity']){
+                    continue;
+                }
+
+                if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false){
+                    return false;
+                }
             }
         }
 
-        return $result;
+        return true;
+
+    }
+
+    protected function mappingSatisfied($mapping, $entities){
+        foreach ($entities as $entity){
+            if ($entity->name === $mapping['targetEntity']){
+                return true;
+            }
+        }
+
+       return false;
+    }
+
+    /**
+     * Return bundle name of entity namespace.
+     *
+     * @param $namespaces
+     * @param $metaNamespace
+     * @return mixed
+     */
+    protected function findBundleInterface($namespaces, $metaNamespace)
+    {
+        $find = array_search($metaNamespace, $namespaces);
+        if ($find !== false) {
+            /** @var Kernel $kernel */
+            $kernel = $this->getContainer()->get('kernel');
+            $bundle = $kernel->getBundle($find);
+            return $bundle;
+        } else {
+            throw new \LogicException("No bundle found for entity namespace " . $metaNamespace);
+        }
     }
 
     /**
@@ -444,5 +367,278 @@ EOT
         $ids = array_unique($ids);
 
         return $ids;
+    }
+
+    /**
+     * Check if a string contain a range ids string.
+     *
+     * @param $string
+     *
+     * @return bool
+     */
+    private function isRangeIds($string)
+    {
+        return (false !== strpos($string, '-'));
+    }
+
+    /**
+     * extract ids from ranges.
+     *
+     * @param $string
+     *
+     * @return array
+     */
+    private function extractRangeIds($string)
+    {
+        $rangesIds = explode('-', $string);
+        $result = array();
+        //validate array should have 2 values and those 2 values are integer.
+        if (count($rangesIds) == 2) {
+            $begin = intval($rangesIds[0]);
+            $end = intval($rangesIds[1]);
+            if ($begin > 0 && $end > 0) {
+                $result = range($begin, $end);
+            }
+        }
+
+        return $result;
+    }
+
+    public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
+    {
+        $output->writeln(
+            array(
+                '',
+                $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
+                '',
+            )
+        );
+    }
+
+    /**
+     * Interactive mode.
+     *
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     */
+    protected function interact(InputInterface $input, OutputInterface $output)
+    {
+        /** @var QuestionHelper $helper */
+        $helper = $this->getHelper('question');
+        $this->writeSection($output, 'Welcome to the Doctrine2 fixture generator');
+
+        // namespace
+        $output->writeln(
+            array(
+                '',
+                'This command helps you generate Doctrine2 fixture.',
+                '',
+            )
+        );
+
+        $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (Y/n)', false);
+        $snapshot = $helper->ask($input, $output, $question);
+
+        if ($snapshot === false) {
+            $bundle = '';
+            $entity = '';
+
+            /** @var Kernel $kernel */
+            $kernel = $this->getContainer()->get('kernel');
+            $bundleNames = array_keys($kernel->getBundles());
+            while (true) {
+
+                $output->writeln(
+                    array(
+                        'First, you need to give the entity name you want to generate fixture from.',
+                        'You must use the shortcut notation like <comment>AcmeBlogBundle:Post</comment>.',
+                        ''
+                    )
+                );
+
+                $question = new Question(
+                    'The Entity shortcut name' . ($input->getOption('entity') != "" ?
+                        " (" . $input->getOption('entity') . ")" : "") . ' : ', $input->getOption('entity')
+                );
+                $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
+                $question->setMaxAttempts(5);
+                $question->setAutocompleterValues($bundleNames);
+                $entity = $helper->ask($input, $output, $question);
+
+                list($bundle, $entity) = $this->parseShortcutNotation($entity);
+
+                try {
+                    /** @var Kernel $kernel */
+                    $kernel = $this->getContainer()->get('kernel');
+                    //check if bundle exist.
+                    $kernel->getBundle($bundle);
+                    try {
+                        $connectionName = $input->getOption('connectionName');
+                        //check if entity exist in the selected bundle.
+                        $this->getContainer()
+                            ->get("doctrine")->getManager($connectionName)
+                            ->getRepository($bundle . ":" . $entity);
+                        break;
+                    } catch (\Exception $e) {
+                        print $e->getMessage() . "\n\n";
+                        $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
+                    }
+
+                } catch (\Exception $e) {
+                    $output->writeln(sprintf('<bg=red>Bundle "%s" does not exist.</>', $bundle));
+                }
+            }
+            $input->setOption('entity', $bundle . ':' . $entity);
+
+            // ids
+            $input->setOption('ids', $this->addIds($input, $output, $helper));
+
+            // name
+            $input->setOption('name', $this->getFixtureName($input, $output, $helper));
+
+            // Order
+            $input->setOption('order', $this->getFixtureOrder($input, $output, $helper));
+
+            $count = count($input->getOption('ids'));
+
+            // summary
+            $output->writeln(
+                array(
+                    '',
+                    $this->getHelper('formatter')->formatBlock('Summary before generation', 'bg=blue;fg=white', true),
+                    '',
+                    sprintf("You are going to generate  \"<info>%s:%s</info>\" fixtures", $bundle, $entity),
+                    sprintf("using the \"<info>%s</info>\" ids.", $count),
+                    '',
+                )
+            );
+
+            $this->confirmGeneration = false;
+            $question = new ConfirmationQuestion('Do you confirm generation ? (Y/n)', false);
+            $this->confirmGeneration = $helper->ask($input, $output, $question);
+        } else {
+            $this->snapshot = true;
+        }
+
+    }
+
+    /**
+     * Interactive mode to add IDs list.
+     *
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param QuestionHelper $helper
+     *
+     * @return array
+     */
+    private function addIds(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
+    {
+        $ids = $this->parseIds($input->getOption('ids'));
+
+        while (true) {
+            $output->writeln('');
+
+            $question = new Question(
+                'New ID (press <return> to stop adding ids)' . (!empty($ids) ? " (" . implode(", ", $ids) . ")" : "")
+                . ' : ', null
+            );
+            $question->setValidator(
+                function ($id) use ($ids) {
+                    if (in_array($id, $ids)) {
+                        throw new \InvalidArgumentException(sprintf('Id "%s" is already defined.', $id));
+                    }
+
+                    return $id;
+                }
+            );
+            $question->setMaxAttempts(5);
+
+            $id = $helper->ask($input, $output, $question);
+
+            if (!$id) {
+                break;
+            }
+
+            $ids[] = $id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Interactive mode to add IDs list.
+     *
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param QuestionHelper $helper
+     *
+     * @return array
+     */
+    private function getFixtureName(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
+    {
+        $name = $input->getOption('name');
+
+
+        //should ask for the name.
+        $output->writeln('');
+
+        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
+        $question->setValidator(
+            function ($name) use ($input) {
+                if ($name == "" && count($input->getOption('ids')) > 1) {
+                    throw new \InvalidArgumentException('Name is require when using multiple IDs.');
+                }
+
+                return $name;
+            }
+        );
+        $question->setMaxAttempts(5);
+        $name = $helper->ask($input, $output, $question);
+
+        if ($name == "") {
+            //use default name.
+            $name = null;
+        }
+
+        return $name;
+    }
+
+    /**
+     * Interactive mode to add IDs list.
+     *
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param QuestionHelper $helper
+     *
+     * @return array
+     */
+    private function getFixtureOrder(InputInterface $input, OutputInterface $output, QuestionHelper $helper)
+    {
+        $order = $input->getOption('order');
+
+        //should ask for the name.
+        $output->writeln('');
+
+        $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
+        $question->setValidator(
+            function ($order) {
+                //allow numeric number including 0. but not 01 for example.
+                if (!preg_match("/^[1-9][0-9]*|0$/", $order)) {
+                    throw new \InvalidArgumentException('Order should be an integer >= 0.');
+                }
+
+                //ensure it return number.
+                return intval($order);
+            }
+        );
+        $question->setMaxAttempts(5);
+        $name = $helper->ask($input, $output, $question);
+
+        if ($name == "") {
+            //use default name.
+            $name = 1;
+        }
+
+        return $name;
     }
 }

@@ -81,7 +81,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
-<spaces><spaces>$manager->getClassMetaData(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
+<spaces><spaces>$manager->getClassMetadata(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
 <spaces>
 <spaces><spaces>$manager->flush();
@@ -229,6 +229,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code = "";
         $reflexion = new \ReflectionClass($item);
         $properties = $reflexion->getProperties();
+
+        $test = $this->metadata->getIdentifierFieldNames();
 
         foreach ($properties as $property) {
             $property->setAccessible(true);
