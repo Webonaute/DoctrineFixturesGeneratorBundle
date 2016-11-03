@@ -12,6 +12,7 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 
 use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Mapping\Entity;
 use Sensio\Bundle\GeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -77,13 +78,16 @@ class DoctrineFixtureGenerator extends Generator
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));
         }
 
-        $class = $this->registry->getEntityManager($connectionName)->getClassMetadata($entityClass);
+        /** @var EntityManager $entityManager */
+        $entityManager = $this->registry->getEntityManager($connectionName);
+        $class = $entityManager->getClassMetadata($entityClass);
 
         $fixtureGenerator = $this->getFixtureGenerator();
         $fixtureGenerator->setFixtureName($fixtureFileName);
         $fixtureGenerator->setBundleNameSpace($bundleNameSpace);
         $fixtureGenerator->setMetadata($class);
         $fixtureGenerator->setFixtureOrder($order);
+        $fixtureGenerator->setEntityManager($entityManager);
 
         /** @var EntityManager $em */
         $em = $this->registry->getManager($connectionName);
