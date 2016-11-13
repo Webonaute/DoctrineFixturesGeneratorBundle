@@ -224,7 +224,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     public function generateFixtureItemStub($item)
     {
-        $id = $item->getId();
+        $id = $this->sanitizeSuspiciousSymbols($item->getId());
 
         $code = "";
         $reflexion = new \ReflectionClass($item);
@@ -448,7 +448,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $reflexionClass = new \ReflectionClass($item);
 
         $replacements = array(
-            $item->getId(),
+            $this->sanitizeSuspiciousSymbols($item->getId()),
             $reflexionClass->getShortName(),
             $this->generateFixtureItemStub($item)
         );
@@ -559,4 +559,14 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $this->getBundleNameSpace() . '\DataFixture\ORM;';
     }
 
+    /**
+     * sanitize illegal symbols in variable name suffix
+     * @param string $string
+     * @return string
+     */
+    private function sanitizeSuspiciousSymbols($string)
+    {
+        $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
+        return $sanitizedString;
+    }
 }
