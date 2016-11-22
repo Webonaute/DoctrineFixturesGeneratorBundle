@@ -429,11 +429,22 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             foreach ($identifiers as $identifier) {
                 $method = "get" . ucfirst($identifier);
                 //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                $ret .= "_" . str_replace("-", "_", $value->$method());
+                $ret .= "_" . $this->sanitizeSuspiciousSymbols($value->$method());
             }
         }
 
         return $ret;
+    }
+
+    /**
+     * sanitize illegal symbols in variable name suffix
+     * @param string $string
+     * @return string
+     */
+    private function sanitizeSuspiciousSymbols($string)
+    {
+        $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
+        return $sanitizedString;
     }
 
     /**
@@ -467,15 +478,15 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
                 $defaultValue = $property->getValue($newInstance);
-                if($value === $defaultValue){
+                if ($value === $defaultValue) {
                     continue;
-                }elseif (is_integer($value)) {
+                } elseif (is_integer($value)) {
                     $setValue = $value;
-                } elseif (is_bool($value)) {
+                } elseif ($value === false || $value === true) {
                     if ($value === true) {
-                        $setValue = 1;
+                        $setValue = "true";
                     } else {
-                        $setValue = 0;
+                        $setValue = "false";
                     }
                 } elseif ($value instanceof \DateTime) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
