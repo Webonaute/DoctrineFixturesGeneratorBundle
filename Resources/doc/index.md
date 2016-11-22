@@ -51,3 +51,18 @@ $ php bin/console doctrine:generate:fixture --entity=Blog:BlogPost --ids="12 534
 Then edit your new fixture BlogBundle/DataFixture/Orm/LoadBug43.php.
 
 Voila!
+
+## Snapshot
+
+Since version 1.3, you can do a full snapshot of your existing database.
+
+To do so, run this command :
+``` bash
+php app/console doctrine:generate:fixture --snapshot --overwrite
+```
+It will create one file per entity you have in your project, it will create it in src/<BundleName>/DataFixtures/ORM/Load<<BundleName>Entity<EntityName>.php
+
+If you have entity relation, the load order will be automatically set according to that.
+
+know issues : 
+ - vendor entity are not generated yet.
