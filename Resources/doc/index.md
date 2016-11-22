@@ -60,7 +60,7 @@ To do so, run this command :
 ``` bash
 php app/console doctrine:generate:fixture --snapshot --overwrite
 ```
-It will create one file per entity you have in your project, it will create it in src/<BundleName>/DataFixtures/ORM/Load<<BundleName>Entity<EntityName>.php
+It will create one file per entity you have in your project, it will create it in ```src/<BundleName>/DataFixtures/ORM/Load<<BundleName>Entity<EntityName>.php```
 
 If you have entity relation, the load order will be automatically set according to that.
 
