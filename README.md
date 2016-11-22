@@ -13,7 +13,6 @@ Features include:
 - Option to specify the exact IDs to import in your fixture.
 - Option to specify a ranges of ids to import in your fixture. (Thanks to [andreyserdjuk](https://github.com/andreyserdjuk))
 - Manually set load order for a fixture from command line. (Thanks to [ioniks](https://github.com/ioniks))
-- 
 - Allow to specify in the command line the specific load order we want for the generated fixture.
 - **NEW** Snapshot : Create a full sets of fixtures from your current database.
 - **NEW** Automatically set the load order in the snapshot context.
