@@ -12,7 +12,7 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\EntityRepository;
 use Sensio\Bundle\GeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -70,7 +70,7 @@ class DoctrineFixtureGenerator extends Generator
         );
 
         $fixtureFileName = $this->getFixtureFileName($entity, $name, $ids);
-        $entityClass = $this->getFqcnEntityClass($entity,$bundle, $isFqcnEntity);
+        $entityClass = $this->getFqcnEntityClass($entity, $bundle, $isFqcnEntity);
 
         $fixturePath = $bundle->getPath() . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
         $bundleNameSpace = $bundle->getNamespace();
@@ -92,10 +92,12 @@ class DoctrineFixtureGenerator extends Generator
         /** @var EntityManager $em */
         $em = $this->registry->getManager($connectionName);
 
+        /** @var EntityRepository $repo */
         $repo = $em->getRepository($class->rootEntityName);
         if (empty($ids)) {
             $items = $repo->findAll();
         } else {
+            //@todo here we assume that you use `id` as primary key. Need to change it to reflect the primary property used by the entity.
             $items = $repo->findById($ids);
         }
 
@@ -164,6 +166,15 @@ class DoctrineFixtureGenerator extends Generator
         return $name;
     }
 
+    protected function getFqcnEntityClass($entity, BundleInterface $bundle, $isFqcnEntity = false)
+    {
+        if ($isFqcnEntity) {
+            return $entity;
+        } else {
+            return $this->registry->getAliasNamespace($bundle->getName()) . '\\' . $entity;
+        }
+    }
+
     /**
      * Return the fixture generator object
      *
@@ -175,15 +186,6 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureGenerator->setNumSpaces(4);
 
         return $fixtureGenerator;
-    }
-
-    protected function getFqcnEntityClass($entity, BundleInterface $bundle, $isFqcnEntity = false)
-    {
-        if ($isFqcnEntity) {
-            return $entity;
-        } else {
-            return $this->registry->getAliasNamespace($bundle->getName()) . '\\' . $entity;
-        }
     }
 
 }

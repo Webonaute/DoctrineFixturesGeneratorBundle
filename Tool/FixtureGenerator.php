@@ -406,7 +406,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $reflexionClass = new \ReflectionClass($item);
 
         $replacements = array(
-            $item->getId(),
+            $this->getRelatedIdsForReference(get_class($item), $item),
             $reflexionClass->getShortName(),
             $this->generateFixtureItemStub($item)
         );
@@ -414,6 +414,26 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
 
         return $code;
+    }
+
+    /**
+     * @param string $fqcn
+     * @return string
+     */
+    protected function getRelatedIdsForReference(string $fqcn, $value)
+    {
+        $relatedClassMeta = $this->entityManager->getClassMetadata($fqcn);
+        $identifiers = $relatedClassMeta->getIdentifier();
+        $ret = "";
+        if (!empty($identifiers)) {
+            foreach ($identifiers as $identifier) {
+                $method = "get" . ucfirst($identifier);
+                //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
+                $ret .= "_" . str_replace("-", "_", $value->$method());
+            }
+        }
+
+        return $ret;
     }
 
     /**
@@ -429,6 +449,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code = "";
         $reflexion = new \ReflectionClass($item);
         $properties = $reflexion->getProperties();
+        $newInstance = $reflexion->newInstance();
 
         foreach ($properties as $property) {
             $property->setAccessible(true);
@@ -445,8 +466,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             $comment = "";
             if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
-
-                if (is_integer($value)) {
+                $defaultValue = $property->getValue($newInstance);
+                if($value === $defaultValue){
+                    continue;
+                }elseif (is_integer($value)) {
                     $setValue = $value;
                 } elseif (is_bool($value)) {
                     if ($value === true) {
@@ -459,44 +482,31 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif (is_object($value)) {
                     //check reference.
                     $relatedEntity = ClassUtils::getRealClass(get_class($value));
-                    $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
-                    $relatedReflexion = new \ReflectionClass($value);
-                    //$relatedId = $value->getId();
-                    $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}$identifiersIdsString')";
-                    $comment = "";
+                    if ($relatedEntity != 'Doctrine\ORM\PersistentCollection') {
+                        $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
+                        $relatedReflexion = new \ReflectionClass($value);
+                        $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}$identifiersIdsString')";
+                        $comment = "";
+                    } else {
+                        //something wrong here.
+                        continue;
+                        //$setValue = '""';
+                    }
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
                 } else {
-                    $setValue = '"' . $value . '"';
+                    $setValue = '"' . str_replace('"', '\"', $value) . '"';
                 }
 
                 $code .= "\n<spaces><spaces>{$comment}\$item{$ids}->{$setter}({$setValue});";
             }
         }
 
-        $code .= "\n\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});\n";
+        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
 
         return $code;
-    }
-
-    /**
-     * @param string $fqcn
-     * @return string
-     */
-    protected function getRelatedIdsForReference(string $fqcn, $value){
-        $relatedClassMeta = $this->entityManager->getClassMetadata($fqcn);
-        $identifiers = $relatedClassMeta->getIdentifier();
-        $ret = "";
-        if (!empty($identifiers)) {
-            foreach ($identifiers as $identifier) {
-                $method = "get".ucfirst($identifier);
-                $ret .= "_".$value->$method();
-            }
-        }
-
-        return $ret;
     }
 
     protected function generateUse()
