@@ -12,7 +12,7 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use Doctrine\ORM\EntityRepository;
 use Sensio\Bundle\GeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -40,7 +40,7 @@ class DoctrineFixtureGenerator extends Generator
     /**
      * Constructor
      *
-     * @param Filesystem        $filesystem
+     * @param Filesystem $filesystem
      * @param RegistryInterface $registry
      */
     public function __construct(Filesystem $filesystem, RegistryInterface $registry)
@@ -53,12 +53,12 @@ class DoctrineFixtureGenerator extends Generator
      * Generate Fixture from bundle name, entity name, fixture name and ids
      *
      * @param BundleInterface $bundle
-     * @param string          $entity
-     * @param string          $name
-     * @param array           $ids
-     * @param string|null     $connectionName
+     * @param string $entity
+     * @param string $name
+     * @param array $ids
+     * @param string|null $connectionName
      */
-    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null)
+    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null, $overwrite = false, $isFqcnEntity = false)
     {
         // configure the bundle (needed if the bundle does not contain any Entities yet)
         $config = $this->registry->getManager($connectionName)->getConfiguration();
@@ -70,29 +70,34 @@ class DoctrineFixtureGenerator extends Generator
         );
 
         $fixtureFileName = $this->getFixtureFileName($entity, $name, $ids);
+        $entityClass = $this->getFqcnEntityClass($entity, $bundle, $isFqcnEntity);
 
-        $entityClass = $this->registry->getAliasNamespace($bundle->getName()) . '\\' . $entity;
         $fixturePath = $bundle->getPath() . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
         $bundleNameSpace = $bundle->getNamespace();
-        if (file_exists($fixturePath)) {
+        if ($overwrite === false && file_exists($fixturePath)) {
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));
         }
 
-        $class = new ClassMetadataInfo($entityClass);
+        /** @var EntityManager $entityManager */
+        $entityManager = $this->registry->getEntityManager($connectionName);
+        $class = $entityManager->getClassMetadata($entityClass);
 
         $fixtureGenerator = $this->getFixtureGenerator();
         $fixtureGenerator->setFixtureName($fixtureFileName);
         $fixtureGenerator->setBundleNameSpace($bundleNameSpace);
         $fixtureGenerator->setMetadata($class);
         $fixtureGenerator->setFixtureOrder($order);
+        $fixtureGenerator->setEntityManager($entityManager);
 
         /** @var EntityManager $em */
         $em = $this->registry->getManager($connectionName);
 
+        /** @var EntityRepository $repo */
         $repo = $em->getRepository($class->rootEntityName);
         if (empty($ids)) {
             $items = $repo->findAll();
         } else {
+            //@todo here we assume that you use `id` as primary key. Need to change it to reflect the primary property used by the entity.
             $items = $repo->findById($ids);
         }
 
@@ -129,14 +134,45 @@ class DoctrineFixtureGenerator extends Generator
                 throw new \RuntimeException('Fixture with multiple IDs should have the --name set.');
             }
 
-            //noBackSlash
-            $fixtureFileName .= str_replace('\\', '', $entity);
-            if (isset($ids[0])) {
-                $fixtureFileName .= $ids[0];
-            }
+            $fixtureFileName = $this->getFixtureNameFromEntityName($entity, $ids);
         }
 
         return $fixtureFileName;
+    }
+
+    /**
+     * Transform Entity name into a compatible filename.
+     *
+     * @param string $entity
+     * @param array $ids
+     * @param string $prefix
+     * @return string
+     */
+    public function getFixtureNameFromEntityName(string $entity, array $ids = [], string $prefix = null)
+    {
+        //noBackSlash
+        $name = str_replace('\\', '', $entity);
+
+        //add prefix.
+        if (strlen($prefix) > 0) {
+            $name = $prefix . ucfirst($name);
+        }
+
+        //add first ID in the name.
+        if (isset($ids[0])) {
+            $name .= $ids[0];
+        }
+
+        return $name;
+    }
+
+    protected function getFqcnEntityClass($entity, BundleInterface $bundle, $isFqcnEntity = false)
+    {
+        if ($isFqcnEntity) {
+            return $entity;
+        } else {
+            return $this->registry->getAliasNamespace($bundle->getName()) . '\\' . $entity;
+        }
     }
 
     /**

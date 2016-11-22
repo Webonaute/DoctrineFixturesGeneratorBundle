@@ -9,6 +9,8 @@
 
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Tool;
 
+use Doctrine\Common\Util\ClassUtils;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
 
 /**
@@ -81,7 +83,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
-<spaces><spaces>$manager->getClassMetaData(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
+<spaces><spaces>$manager->getClassMetadata(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
 <spaces>
 <spaces><spaces>$manager->flush();
@@ -163,6 +165,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      * @var string
      */
     protected $referencePrefix = '_reference_';
+    /**
+     * @var EntityManagerInterface
+     */
+    protected $entityManager;
 
     /**
      * Constructor.
@@ -182,6 +188,59 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     public function generate($outputDirectory)
     {
         $this->writeFixtureClass($outputDirectory);
+    }
+
+    /**
+     * Generates and writes entity class to disk for the given ClassMetadataInfo instance.
+     *
+     * @param string $outputDirectory
+     *
+     * @return void
+     * @throws \RuntimeException
+     */
+    public function writeFixtureClass($outputDirectory)
+    {
+        $path = $outputDirectory . '/' . str_replace(
+                '\\',
+                DIRECTORY_SEPARATOR,
+                $this->getFixtureName()
+            ) . $this->extension;
+        $dir = dirname($path);
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+
+        $this->isNew = !file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
+
+        if ($this->backupExisting && file_exists($path)) {
+            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
+            if (!copy($path, $backupPath)) {
+                throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
+            }
+        }
+
+        file_put_contents($path, $this->generateFixtureClass());
+    }
+
+    /**
+     * @return string
+     */
+    public function getFixtureName()
+    {
+        return $this->fixtureName;
+    }
+
+    /**
+     * @param string $fixtureName
+     *
+     * @return FixtureGenerator
+     */
+    public function setFixtureName($fixtureName)
+    {
+        $this->fixtureName = $fixtureName;
+
+        return $this;
     }
 
     /**
@@ -218,68 +277,38 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     }
 
     /**
-     * @param object $item
-     *
+     * @return ClassMetadataInfo
+     */
+    public function getMetadata()
+    {
+        return $this->metadata;
+    }
+
+    public function setMetadata(ClassMetadataInfo $metadata)
+    {
+        $this->metadata = $metadata;
+
+        return $this;
+    }
+
+    /**
      * @return string
      */
-    public function generateFixtureItemStub($item)
+    protected function generateFixtureNamespace()
     {
-        $id = $item->getId();
-
-        $code = "";
-        $reflexion = new \ReflectionClass($item);
-        $properties = $reflexion->getProperties();
-
-        foreach ($properties as $property) {
-            $property->setAccessible(true);
-            $name = $property->getName();
-            if (strpos($name, '_')) {
-                $_names = explode('_', $property->getName());
-                foreach ($_names as $k => $_name) {
-                    $_names[$k] = ucfirst($_name);
-                }
-                $name = implode('', $_names);
-            }
-            $setter = "set" . ucfirst($name);
-            $getter = "get" . ucfirst($name);
-            $comment = "";
-            if (method_exists($item, $setter)) {
-                $value = $property->getValue($item);
-
-                if (is_integer($value)) {
-                    $setValue = $value;
-                } elseif (is_bool($value)) {
-                    if ($value === true) {
-                        $setValue = 1;
-                    } else {
-                        $setValue = 0;
-                    }
-                } elseif ($value instanceof \DateTime) {
-                    $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
-                } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
-                    //check reference.
-                    $relatedReflexion = new \ReflectionClass($value);
-                    $relatedId = $value->getId();
-                    $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}_{$relatedId}')";
-                    $comment = "";
-                }
-                elseif(is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection"){
-                    $setValue = "unserialize('" . serialize($value->getSnapshot()) . "')";
-                }
-                elseif (is_array($value)) {
-                    $setValue = "unserialize('" . serialize($value) . "')";
-                } elseif (is_null($value)) {
-                    $setValue = "NULL";
-                } else {
-                    $setValue = "<<<'EOT'\n$value\nEOT" . PHP_EOL;
-                }
-                $code .= "\n<spaces><spaces>{$comment}\$item{$id}->{$setter}({$setValue});";
-            }
+        $namespace = 'namespace ' . $this->getNamespace();
+        if (strpos($namespace, ';') === false) {
+            $namespace . ';';
         }
+        return $namespace;
+    }
 
-        $code .= "\n\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}_{$id}', \$item{$id});\n";
-
-        return $code;
+    /**
+     * @return string
+     */
+    protected function getNamespace()
+    {
+        return $this->getBundleNameSpace() . '\DataFixture\ORM;';
     }
 
     /**
@@ -288,26 +317,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     public function getBundleNameSpace()
     {
         return $this->bundleNameSpace;
-    }
-
-    /**
-     * @return string
-     */
-    public function getFixtureOrder()
-    {
-        return $this->fixtureorder;
-    }
-
-    /**
-     * @param string $fixtureOrder
-     *
-     * @return FixtureGenerator
-     */
-    public function setFixtureOrder($fixtureOrder)
-    {
-        $this->fixtureorder = $fixtureOrder;
-
-        return $this;
     }
 
     /**
@@ -325,201 +334,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    public function getFixtureName()
-    {
-        return $this->fixtureName;
-    }
-
-    /**
-     * @param string $fixtureName
-     *
-     * @return FixtureGenerator
-     */
-    public function setFixtureName($fixtureName)
-    {
-        $this->fixtureName = $fixtureName;
-
-        return $this;
-    }
-
-    /**
-     * @return array
-     */
-    public function getItems()
-    {
-        return $this->items;
-    }
-
-    /**
-     * @param array $items
-     */
-    public function setItems(array $items)
-    {
-        $this->items = $items;
-    }
-
-    /**
-     * @return ClassMetadataInfo
-     */
-    public function getMetadata()
-    {
-        return $this->metadata;
-    }
-
-    public function setMetadata(ClassMetadataInfo $metadata)
-    {
-        $this->metadata = $metadata;
-
-        return $this;
-    }
-
-    /**
-     * Sets the extension to use when writing php files to disk.
-     *
-     * @param string $extension
-     *
-     * @return void
-     */
-    public function setExtension($extension)
-    {
-        $this->extension = $extension;
-    }
-
-    /**
-     * Sets the number of spaces the exported class should have.
-     *
-     * @param integer $numSpaces
-     *
-     * @return void
-     */
-    public function setNumSpaces($numSpaces)
-    {
-        $this->spaces = str_repeat(' ', $numSpaces);
-        $this->numSpaces = $numSpaces;
-    }
-
-    /**
-     * Generates and writes entity class to disk for the given ClassMetadataInfo instance.
-     *
-     * @param string $outputDirectory
-     *
-     * @return void
-     * @throws \RuntimeException
-     */
-    public function writeFixtureClass($outputDirectory)
-    {
-        $path = $outputDirectory . '/' . str_replace(
-                '\\',
-                DIRECTORY_SEPARATOR,
-                $this->getFixtureName()
-            ) . $this->extension;
-        $dir = dirname($path);
-
-        if ( ! is_dir($dir)) {
-            mkdir($dir, 0777, true);
-        }
-
-        $this->isNew = ! file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
-
-        if ($this->backupExisting && file_exists($path)) {
-            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
-            if ( ! copy($path, $backupPath)) {
-                throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
-            }
-        }
-
-        file_put_contents($path, $this->generateFixtureClass());
-    }
-
-    /**
-     * @param $item
-     *
-     * @return string
-     */
-    protected function generateFixture($item)
-    {
-
-        $placeHolders = array(
-            '<itemCount>',
-            '<entityName>',
-            '<itemStubs>',
-        );
-
-        $reflexionClass = new \ReflectionClass($item);
-
-        $replacements = array(
-            $item->getId(),
-            $reflexionClass->getShortName(),
-            $this->generateFixtureItemStub($item)
-        );
-
-        $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
-
-        return $code;
-    }
-
-    /**
-     * @return string
-     */
-    protected function generateFixtureBody()
-    {
-        $code = self::$getLoadMethodTemplate;
-        $classpath = $this->getMetadata()->getName();
-        $pos = strrpos($classpath, "\\");
-
-        $code = str_replace("<entityName>", substr($classpath, $pos + 1), $code);
-        $code = str_replace("<fixtures>", $this->generateFixtures(), $code);
-
-        return $code;
-    }
-
-    /**
-     * @return string
-     */
     protected function generateFixtureClassName()
     {
         return 'class ' . $this->getClassName() . ' extends ' . $this->getClassToExtend();
-    }
-
-    protected function generateFixtureLoadMethod(ClassMetadataInfo $metadata)
-    {
-
-    }
-
-    /**
-     * @return string
-     */
-    protected function generateFixtureNamespace()
-    {
-        $namespace = 'namespace ' . $this->getNamespace();
-        if (strpos($namespace, ';') === false) {
-            $namespace . ';';
-        }
-        return $namespace;
-    }
-
-    protected function generateFixtures()
-    {
-        $code = "";
-
-        foreach ($this->items as $item) {
-            $code .= $this->generateFixture($item);
-        }
-
-        return $code;
-    }
-
-    /**
-     * @return int
-     */
-    protected function generateOrder()
-    {
-        return $this->fixtureorder;
-    }
-
-    protected function generateUse()
-    {
-        return "use " . $this->getMetadata()->rootEntityName . ";";
     }
 
     /**
@@ -550,13 +367,252 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $this->classToExtend = $classToExtend;
     }
 
+    /**
+     * @return string
+     */
+    protected function generateFixtureBody()
+    {
+        $code = self::$getLoadMethodTemplate;
+        $classpath = $this->getMetadata()->getName();
+        $pos = strrpos($classpath, "\\");
+
+        $code = str_replace("<entityName>", substr($classpath, $pos + 1), $code);
+        $code = str_replace("<fixtures>", $this->generateFixtures(), $code);
+
+        return $code;
+    }
+
+    protected function generateFixtures()
+    {
+        $code = "";
+
+        foreach ($this->items as $item) {
+            $code .= $this->generateFixture($item);
+        }
+
+        return $code;
+    }
+
+    /**
+     * @param $item
+     *
+     * @return string
+     */
+    protected function generateFixture($item)
+    {
+
+        $placeHolders = array(
+            '<itemCount>',
+            '<entityName>',
+            '<itemStubs>',
+        );
+
+        $reflexionClass = new \ReflectionClass($item);
+
+        $replacements = array(
+            $this->getRelatedIdsForReference(get_class($item), $item),
+            $reflexionClass->getShortName(),
+            $this->generateFixtureItemStub($item)
+        );
+
+        $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
+
+        return $code;
+    }
+
+    /**
+     * @param string $fqcn
+     * @return string
+     */
+    protected function getRelatedIdsForReference(string $fqcn, $value)
+    {
+        $relatedClassMeta = $this->entityManager->getClassMetadata($fqcn);
+        $identifiers = $relatedClassMeta->getIdentifier();
+        $ret = "";
+        if (!empty($identifiers)) {
+            foreach ($identifiers as $identifier) {
+                $method = "get" . ucfirst($identifier);
+                //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
+                $ret .= "_" . $this->sanitizeSuspiciousSymbols($value->$method());
+            }
+        }
+
+        return $ret;
+    }
+
+    /**
+     * sanitize illegal symbols in variable name suffix
+     * @param string $string
+     * @return string
+     */
+    private function sanitizeSuspiciousSymbols($string)
+    {
+        $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
+        return $sanitizedString;
+    }
+
+    /**
+     * @param object $item
+     *
+     * @return string
+     */
+    public function generateFixtureItemStub($item)
+    {
+        $id = $item->getId();
+        $ids = $this->getRelatedIdsForReference(get_class($item), $item);
+
+        $code = "";
+        $reflexion = new \ReflectionClass($item);
+        $properties = $reflexion->getProperties();
+        $newInstance = $reflexion->newInstance();
+
+        foreach ($properties as $property) {
+            $property->setAccessible(true);
+            $name = $property->getName();
+            if (strpos($name, '_')) {
+                $_names = explode('_', $property->getName());
+                foreach ($_names as $k => $_name) {
+                    $_names[$k] = ucfirst($_name);
+                }
+                $name = implode('', $_names);
+            }
+            $setter = "set" . ucfirst($name);
+            $getter = "get" . ucfirst($name);
+            $comment = "";
+            if (method_exists($item, $setter)) {
+                $value = $property->getValue($item);
+                $defaultValue = $property->getValue($newInstance);
+                if ($value === $defaultValue) {
+                    continue;
+                } elseif (is_integer($value)) {
+                    $setValue = $value;
+                } elseif ($value === false || $value === true) {
+                    if ($value === true) {
+                        $setValue = "true";
+                    } else {
+                        $setValue = "false";
+                    }
+                } elseif ($value instanceof \DateTime) {
+                    $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
+                } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
+                    //check reference.
+                    $relatedEntity = ClassUtils::getRealClass(get_class($value));
+                    if ($relatedEntity != 'Doctrine\ORM\PersistentCollection') {
+                        $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
+                        $relatedReflexion = new \ReflectionClass($value);
+                        $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}$identifiersIdsString')";
+                        $comment = "";
+                    } else {
+                        //something wrong here.
+                        continue;
+                        //$setValue = '""';
+                    }
+                } elseif (is_array($value)) {
+                    $setValue = "unserialize('" . serialize($value) . "')";
+                } elseif (is_null($value)) {
+                    $setValue = "NULL";
+                } else {
+                    $setValue = '"' . str_replace(['"', '$'], ['\"', '\$'], $value) . '"';
+                }
+
+                $code .= "\n<spaces><spaces>{$comment}\$item{$ids}->{$setter}({$setValue});";
+            }
+        }
+
+        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
+
+        return $code;
+    }
+
+    protected function generateUse()
+    {
+        return "use " . $this->getMetadata()->rootEntityName . ";";
+    }
+
+    /**
+     * @return int
+     */
+    protected function generateOrder()
+    {
+        return $this->fixtureorder;
+    }
 
     /**
      * @return string
      */
-    protected function getNamespace()
+    public function getFixtureOrder()
     {
-        return $this->getBundleNameSpace() . '\DataFixture\ORM;';
+        return $this->fixtureorder;
+    }
+
+    /**
+     * @param string $fixtureOrder
+     *
+     * @return FixtureGenerator
+     */
+    public function setFixtureOrder($fixtureOrder)
+    {
+        $this->fixtureorder = $fixtureOrder;
+
+        return $this;
+    }
+
+    /**
+     * @param EntityManagerInterface $entityManager
+     *
+     * @return FixtureGenerator
+     */
+    public function setEntityManager(EntityManagerInterface $entityManager)
+    {
+        $this->entityManager = $entityManager;
+
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getItems()
+    {
+        return $this->items;
+    }
+
+    /**
+     * @param array $items
+     */
+    public function setItems(array $items)
+    {
+        $this->items = $items;
+    }
+
+    /**
+     * Sets the extension to use when writing php files to disk.
+     *
+     * @param string $extension
+     *
+     * @return void
+     */
+    public function setExtension($extension)
+    {
+        $this->extension = $extension;
+    }
+
+    /**
+     * Sets the number of spaces the exported class should have.
+     *
+     * @param integer $numSpaces
+     *
+     * @return void
+     */
+    public function setNumSpaces($numSpaces)
+    {
+        $this->spaces = str_repeat(' ', $numSpaces);
+        $this->numSpaces = $numSpaces;
+    }
+
+    protected function generateFixtureLoadMethod(ClassMetadataInfo $metadata)
+    {
+
     }
 
 }
