@@ -9,9 +9,11 @@
 
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Tool;
 
+use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
 
 /**
  * Generic class used to generate PHP5 fixture classes from existing data.
@@ -495,18 +497,20 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif ($value instanceof \DateTime) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
-                    //check reference.
-                    $relatedEntity = ClassUtils::getRealClass(get_class($value));
-                    if ($relatedEntity != 'Doctrine\ORM\PersistentCollection') {
+                    if ($this->hasIgnoreProperty($property) === false) {
+                        //check reference.
+                        $relatedEntity = ClassUtils::getRealClass(get_class($value));
                         $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
                         $relatedReflexion = new \ReflectionClass($value);
                         $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}$identifiersIdsString')";
                         $comment = "";
+
                     } else {
-                        //something wrong here.
+                        //ignore data for this property.
                         continue;
-                        //$setValue = '""';
                     }
+                } elseif (is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection") {
+                    continue;
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . serialize($value) . "')";
                 } elseif (is_null($value)) {
@@ -522,6 +526,24 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
 
         return $code;
+    }
+
+    protected function hasIgnoreProperty($propertyReflection)
+    {
+        $reader = new AnnotationReader();
+
+        /** @var Property $propertyAnnotation */
+        $propertyAnnotation = $reader->getPropertyAnnotation(
+            $propertyReflection,
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
+        );
+
+        if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
+            //ignore this mapping. (data will not be exported for that field.)
+            return true;
+        } else {
+            return false;
+        }
     }
 
     protected function generateUse()
