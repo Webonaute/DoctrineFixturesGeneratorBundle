@@ -222,11 +222,14 @@ EOT
         $level = 1;
         $countMeta = count($metadatas);
         $entities = [];
+
         /** @var EntityManager $em */
         $em = $this->getContainer()->get('doctrine')->getManager($connectionName);
         $namespaces = $em->getConfiguration()->getEntityNamespaces();
 
         do {
+            //reset current level entities list
+            $entitiesCurrentOrder = [];
             //for each meta,
             /**
              * @var int $mkey
@@ -234,19 +237,23 @@ EOT
              */
             foreach ($metadatas as $mkey => $meta) {
                 $name = $meta->getName();
+                //check against last orders entities.
                 if ($this->isEntityLevelReached($meta, $entities)) {
                     $entity = new \stdClass();
                     $entity->level = $level;
                     $entity->name = $meta->getName();
                     $entity->bundle = $this->findBundleInterface($namespaces, $meta->namespace);;
                     $entity->meta = $meta;
-                    $entities[] = $entity;
+                    //add to temporary group of entities.
+                    $entitiesCurrentOrder[] = $entity;
 
                     //remove from meta to process.
                     unset($metadatas[$mkey]);
                 }
             }
             $level++;
+
+            $entities = array_merge($entities, $entitiesCurrentOrder);
             //repeat until all metadata are processed.
             //it can't have more level than number of entities so break if $level is superior to $countMeta.
         } while (!empty($metadatas) && $level <= $countMeta);
@@ -301,7 +308,7 @@ EOT
             }
         }
 
-       return false;
+        return false;
     }
 
     /**
