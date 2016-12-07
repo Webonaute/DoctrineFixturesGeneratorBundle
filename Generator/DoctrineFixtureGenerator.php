@@ -153,12 +153,12 @@ class DoctrineFixtureGenerator extends Generator
     {
         // Throw error if $entity is not a string
         if (!is_string($entity)) {
-            throw new \InvalidArgumentException('The parameter $entity is expected to be a string, "' . typeof($entity) . '" given.');
+            throw new \InvalidArgumentException('The parameter $entity is expected to be a string, "' . gettype($entity) . '" given.');
         }
         
         // Throw error if $prefix is not a string
         if ($prefix && !is_string($prefix)) {
-            throw new \InvalidArgumentException('The parameter $prefix is expected to be a string, "' . typeof($prefix) . '" given.');
+            throw new \InvalidArgumentException('The parameter $prefix is expected to be a string, "' . gettype($prefix) . '" given.');
         }
         
         //noBackSlash
