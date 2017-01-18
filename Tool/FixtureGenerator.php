@@ -573,10 +573,18 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @param string $fqcn
      *
+     * @throws InvalidArgumentException if the $fqcn argument is not a string
      * @return string
      */
-    protected function getRelatedIdsForReference(string $fqcn, $value)
+    protected function getRelatedIdsForReference($fqcn, $value)
     {
+        // Throw error if $entity is not a string
+        if (!is_string($fqcn)) {
+            throw new \InvalidArgumentException(
+                'The parameter $fqcn is expected to be a string, "'.gettype($fqcn).'" given.'
+            );
+        }
+
         $relatedClassMeta = $this->entityManager->getClassMetadata($fqcn);
         $identifiers = $relatedClassMeta->getIdentifier();
         $ret = "";
