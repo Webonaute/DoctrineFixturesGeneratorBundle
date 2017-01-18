@@ -64,5 +64,54 @@ It will create one file per entity you have in your project, it will create it i
 
 If you have entity relation, the load order will be automatically set according to that.
 
-know issues : 
+## Property Annotation
+You can set a column to not be imported at all into your fixture.
+To do so, you can add this annotation to any property of your entity. 
+```
+@Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property(ignoreInSnapshot=true)
+```
+
+Entity Example :
+```
+<?php
+
+namespace AppBundle\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use Gedmo\Mapping\Annotation as Gedmo;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotations as DFG;
+
+/**
+ * AppBundle\Entity\Category
+ *
+ * @ORM\Entity(repositoryClass="AppBundle\Repository\CategoryRepository")
+ * @ORM\Table(name="categories")
+ */
+class Category
+{
+    /**
+     * @ORM\Id
+     * @ORM\Column(name="idcategorie", type="integer")
+     * @ORM\GeneratedValue(strategy="AUTO")
+     */
+    protected $id;
+
+    /**
+     * @ORM\Column(name="createdAt", type="datetime", options={"default"="0000-00-00 00:00:00"})
+     * @DFG\Property(ignoreInSnapshot=true)
+     */
+    protected $createdAt;
+
+    /**
+     * @ORM\Column(name="name", type="text", nullable=true)
+     */
+    protected $name;
+}
+```
+
+### Loop in reference object
+If you have reference to object in a loop, for exemple, you have an entity category who have a field creator id and a user table with a category id. The ignore annotation can be use to fix the issue on the creator column so the categories fixtures can be created first than the users fixtures. The downside for this is the value of creator will always be null and the column need to have nullable=tue in the annotation.
+
+# know issues : 
  - vendor entity are not generated yet.
+ 
