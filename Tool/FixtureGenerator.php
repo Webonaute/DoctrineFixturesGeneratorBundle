@@ -296,26 +296,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @return string
      */
-    protected function generateFixtureNamespace()
-    {
-        $namespace = 'namespace ' . $this->getNamespace();
-        if (strpos($namespace, ';') === false) {
-            $namespace . ';';
-        }
-        return $namespace;
-    }
-
-    /**
-     * @return string
-     */
-    protected function getNamespace()
-    {
-        return $this->getBundleNameSpace() . '\DataFixture\ORM;';
-    }
-
-    /**
-     * @return string
-     */
     public function getBundleNameSpace()
     {
         return $this->bundleNameSpace;
@@ -333,7 +313,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $this;
     }
 
-    /**
+    /*
      * @return string
      */
     protected function generateFixtureClassName()
@@ -466,7 +446,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     public function generateFixtureItemStub($item)
     {
-        $id = $item->getId();
         $ids = $this->getRelatedIdsForReference(get_class($item), $item);
 
         $code = "";
@@ -532,37 +511,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
 
         return $code;
-    }
-
-    protected function hasIgnoreProperty($propertyReflection)
-    {
-        $reader = new AnnotationReader();
-
-        /** @var Property $propertyAnnotation */
-        $propertyAnnotation = $reader->getPropertyAnnotation(
-            $propertyReflection,
-            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
-        );
-
-        if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
-            //ignore this mapping. (data will not be exported for that field.)
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    protected function generateUse()
-    {
-        return "use " . $this->getMetadata()->rootEntityName . ";";
-    }
-
-    /**
-     * @return int
-     */
-    protected function generateOrder()
-    {
-        return $this->fixtureorder;
     }
 
     /**
@@ -638,9 +586,183 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $this->numSpaces = $numSpaces;
     }
 
+    /**
+     * @return string
+     */
+    protected function generateFixtureNamespace()
+    {
+        $namespace = 'namespace '.$this->getNamespace();
+        if (strpos($namespace, ';') === false) {
+            $namespace.';';
+        }
+
+        return $namespace;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getNamespace()
+    {
+        return $this->getBundleNameSpace().'\DataFixture\ORM;';
+    }
+
+    /**
+     * @return string
+     */
+    protected function generateFixtureClassName()
+    {
+        return 'class '.$this->getClassName().' extends '.$this->getClassToExtend();
+    }
+
+    /**
+     * @return string
+     */
+    protected function getClassName()
+    {
+        return $this->fixtureName;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getClassToExtend()
+    {
+        return $this->classToExtend;
+    }
+
+    /**
+     * Sets the name of the class the generated classes should extend from.
+     *
+     * @param string $classToExtend
+     *
+     * @return void
+     */
+    public function setClassToExtend($classToExtend)
+    {
+        $this->classToExtend = $classToExtend;
+    }
+
+    /**
+     * @return string
+     */
+    protected function generateFixtureBody()
+    {
+        $code = self::$getLoadMethodTemplate;
+        $classpath = $this->getMetadata()->getName();
+        $pos = strrpos($classpath, "\\");
+
+        $code = str_replace("<entityName>", substr($classpath, $pos + 1), $code);
+        $code = str_replace("<fixtures>", $this->generateFixtures(), $code);
+
+        return $code;
+    }
+
+    protected function generateFixtures()
+    {
+        $code = "";
+
+        foreach ($this->items as $item) {
+            $code .= $this->generateFixture($item);
+        }
+
+        return $code;
+    }
+
+    /**
+     * @param $item
+     *
+     * @return string
+     */
+    protected function generateFixture($item)
+    {
+
+        $placeHolders = [
+            '<itemCount>',
+            '<entityName>',
+            '<itemStubs>',
+        ];
+
+        $reflexionClass = new \ReflectionClass($item);
+
+        $replacements = [
+            $this->getRelatedIdsForReference(get_class($item), $item),
+            $reflexionClass->getShortName(),
+            $this->generateFixtureItemStub($item),
+        ];
+
+        $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
+
+        return $code;
+    }
+
+    /**
+     * @param string $fqcn
+     *
+     * @return string
+     */
+    protected function getRelatedIdsForReference(string $fqcn, $value)
+    {
+        $relatedClassMeta = $this->entityManager->getClassMetadata($fqcn);
+        $identifiers = $relatedClassMeta->getIdentifier();
+        $ret = "";
+        if (!empty($identifiers)) {
+            foreach ($identifiers as $identifier) {
+                $method = "get".ucfirst($identifier);
+                //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
+                $ret .= "_".$this->sanitizeSuspiciousSymbols($value->$method());
+            }
+        }
+
+        return $ret;
+    }
+
+    protected function hasIgnoreProperty($propertyReflection)
+    {
+        $reader = new AnnotationReader();
+
+        /** @var Property $propertyAnnotation */
+        $propertyAnnotation = $reader->getPropertyAnnotation(
+            $propertyReflection,
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
+        );
+
+        if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
+            //ignore this mapping. (data will not be exported for that field.)
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    protected function generateUse()
+    {
+        return "use ".$this->getMetadata()->rootEntityName.";";
+    }
+
+    /**
+     * @return int
+     */
+    protected function generateOrder()
+    {
+        return $this->fixtureorder;
+    }
+
     protected function generateFixtureLoadMethod(ClassMetadataInfo $metadata)
     {
 
+    }
+
+    /**
+     * sanitize illegal symbols in variable name suffix
+     * @param string $string
+     * @return string
+     */
+    private function sanitizeSuspiciousSymbols($string)
+    {
+        $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
+
+        return $sanitizedString;
     }
 
 }
