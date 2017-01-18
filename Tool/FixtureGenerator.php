@@ -584,7 +584,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             foreach ($identifiers as $identifier) {
                 $method = "get".ucfirst($identifier);
                 //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                $ret .= "_".$this->sanitizeSuspiciousSymbols($value->$method());
+                $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
             }
         }
 
