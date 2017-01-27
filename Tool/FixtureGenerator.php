@@ -478,7 +478,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected function getNamespace()
     {
-        return $this->getBundleNameSpace().'\DataFixture\ORM;';
+        return $this->getBundleNameSpace().'\DataFixtures\ORM;';
     }
 
     /**
