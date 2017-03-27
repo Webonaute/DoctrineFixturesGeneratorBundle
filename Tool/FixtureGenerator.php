@@ -375,7 +375,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
                 } else {
-                    $setValue = '"' . str_replace(['"', '$'], ['\"', '\$'], $value) . '"';
+                    $setValue = '"' . str_replace(['"', '$', '\''], ['\"', '\$', '\\\''], $value) . '"';
                 }
 
                 $code .= "\n<spaces><spaces>{$comment}\$item{$ids}->{$setter}({$setValue});";
