@@ -443,7 +443,7 @@ EOT
             )
         );
 
-        $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (Y/n)', false);
+        $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (y/N)', false);
         $snapshot = $helper->ask($input, $output, $question);
 
         if ($snapshot === false) {
@@ -521,7 +521,7 @@ EOT
             );
 
             $this->confirmGeneration = false;
-            $question = new ConfirmationQuestion('Do you confirm generation ? (Y/n)', false);
+            $question = new ConfirmationQuestion('Do you confirm generation ? (Y/n)', true);
             $this->confirmGeneration = $helper->ask($input, $output, $question);
         } else {
             $this->snapshot = true;
