@@ -68,7 +68,7 @@ If you have entity relation, the load order will be automatically set according 
 You can set a column to not be imported at all into your fixture.
 To do so, you can add this annotation to any property of your entity. 
 ```
-@Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property(ignoreInSnapshot=true)
+@Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property(ignoreInSnapshot=true)
 ```
 
 Entity Example :
@@ -79,7 +79,7 @@ namespace AppBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations as DFG;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation as DFG;
 
 /**
  * AppBundle\Entity\Category
@@ -115,7 +115,7 @@ If you have reference to object in a loop, for exemple, you have an entity categ
 ## FixtureSnapshot Annotation
 You can easily ignore an entity from importing the data by adding this annotation to the class doc block.
 ```
-@Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot(ignore=true)
+@Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot(ignore=true)
 ```
 Example :
 ```
@@ -124,7 +124,7 @@ Example :
 namespace AppBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations as DFG;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation as DFG;
 
 /**
  * AppBundle\Entity\Category
