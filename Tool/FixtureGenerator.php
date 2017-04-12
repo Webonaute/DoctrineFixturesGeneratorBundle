@@ -371,7 +371,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif (is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection") {
                     continue;
                 } elseif (is_array($value)) {
-                    $setValue = "unserialize('" . serialize($value) . "')";
+                    $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
                 } else {
