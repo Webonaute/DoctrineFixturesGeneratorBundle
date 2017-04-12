@@ -24,6 +24,7 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot;
 use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
 
@@ -277,13 +278,14 @@ EOT
 
         $reader = new AnnotationReader();
         $reflectionClass = $meta->getReflectionClass();
-        $classAnnotation = $reader->getClassAnnotation(
+        /** @var FixtureSnapshot $fixtureSnapshotAnnotation */
+        $fixtureSnapshotAnnotation = $reader->getClassAnnotation(
             $reflectionClass,
             'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot'
         );
 
-        if ($classAnnotation !== null) {
-            $result = $classAnnotation->ignore;
+        if ($fixtureSnapshotAnnotation !== null) {
+            $result = $fixtureSnapshotAnnotation->ignore;
         }
 
         return $result;
