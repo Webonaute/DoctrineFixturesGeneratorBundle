@@ -112,6 +112,38 @@ class Category
 ### Loop in reference object
 If you have reference to object in a loop, for exemple, you have an entity category who have a field creator id and a user table with a category id. The ignore annotation can be use to fix the issue on the creator column so the categories fixtures can be created first than the users fixtures. The downside for this is the value of creator will always be null and the column need to have nullable=tue in the annotation.
 
+## FixtureSnapshot Annotation
+You can easily ignore an entity from importing the data by adding this annotation to the class doc block.
+```
+@Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot(ignore=true)
+```
+Example :
+```
+<?php
+
+namespace AppBundle\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotations as DFG;
+
+/**
+ * AppBundle\Entity\Category
+ *
+ * @ORM\Entity(repositoryClass="AppBundle\Repository\CategoryRepository")
+ * @ORM\Table(name="categories")
+ * @DFG\FixtureSnapshot(ignore=true)
+ */
+class Category
+{
+    /**
+     * @ORM\Id
+     * @ORM\Column(name="idcategorie", type="integer")
+     * @ORM\GeneratedValue(strategy="AUTO")
+     */
+    protected $id;
+}
+```
+
 # know issues : 
  - vendor entity are not generated yet.
  
