@@ -583,8 +583,12 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         if (!empty($identifiers)) {
             foreach ($identifiers as $identifier) {
                 $method = "get".ucfirst($identifier);
-                //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
+                if (method_exists($value, $method)){
+                    //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
+                    $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
+                }else{
+                    $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier);
+                }
             }
         }
 

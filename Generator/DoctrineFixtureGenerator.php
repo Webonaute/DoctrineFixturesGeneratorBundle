@@ -79,7 +79,7 @@ class DoctrineFixtureGenerator extends Generator
         }
 
         /** @var EntityManager $entityManager */
-        $entityManager = $this->registry->getEntityManager($connectionName);
+        $entityManager = $this->registry->getManager($connectionName);
         $class = $entityManager->getClassMetadata($entityClass);
 
         $fixtureGenerator = $this->getFixtureGenerator();

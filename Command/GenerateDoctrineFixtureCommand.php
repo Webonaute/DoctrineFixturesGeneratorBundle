@@ -169,6 +169,7 @@ EOT
             $output->writeln('Generating the fixture code: <info>OK</info>');
         }
 
+        $output->writeln('<info>DONE!</info>');
         //all fine.
         return 0;
     }
@@ -239,9 +240,8 @@ EOT
              * @var ClassMetadata $meta
              */
             foreach ($metadatas as $mkey => $meta) {
-                $name = $meta->getName();
                 //check against last orders entities.
-                if ($this->isEntityLevelReached($meta, $entities)) {
+                if ($this->isEntityLevelReached($meta, $entities) && $this->isIgnoredEntity($meta) === false) {
                     $entity = new \stdClass();
                     $entity->level = $level;
                     $entity->name = $meta->getName();
@@ -265,6 +265,32 @@ EOT
     }
 
     /**
+     * Check if the entity should generate fixtures.
+     *
+     * @param ClassMetadata $meta
+     *
+     * @return bool
+     */
+    protected function isIgnoredEntity(ClassMetadata $meta)
+    {
+        $result = false;
+
+        $reader = new AnnotationReader();
+        $reflectionClass = $meta->getReflectionClass();
+        $classAnnotation = $reader->getClassAnnotation(
+            $reflectionClass,
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot'
+        );
+
+        if ($classAnnotation !== null) {
+            $result = $classAnnotation->ignore;
+        }
+
+        return $result;
+
+    }
+
+    /**
      * @param ClassMetadata $meta
      * @param array $entities
      *
@@ -272,7 +298,6 @@ EOT
      */
     protected function isEntityLevelReached(ClassMetadata $meta, array $entities)
     {
-        $name = $meta->getName();
         $mappings = $meta->getAssociationMappings();
         $reader = new AnnotationReader();
 
@@ -331,14 +356,13 @@ EOT
         $bundle = null;
 
         if (count($namespaceParts) > 0) {
+            /** @var Kernel $kernel */
             $kernel = $this->getContainer()->get('kernel');
 
             do {
                 try {
                     $find = array_search(implode("\\", $namespaceParts), $namespaces);
                     if ($find !== false) {
-                        /** @var Kernel $kernel */
-                        $kernel = $this->getContainer()->get('kernel');
                         $bundle = $kernel->getBundle($find);
                     }else{
                         array_pop($namespaceParts);
@@ -355,17 +379,6 @@ EOT
         }
 
         return $bundle;
-
-//        $find = array_search($metaNamespace, $namespaces);
-//        if ($find !== false) {
-//            /** @var Kernel $kernel */
-//            $kernel = $this->getContainer()->get('kernel');
-//            $bundle = $kernel->getBundle($find);
-//
-//            return $bundle;
-//        } else {
-//            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
-//        }
     }
 
     /**
