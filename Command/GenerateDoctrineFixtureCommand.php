@@ -24,8 +24,8 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
 
 /**
@@ -281,7 +281,7 @@ EOT
         /** @var FixtureSnapshot $fixtureSnapshotAnnotation */
         $fixtureSnapshotAnnotation = $reader->getClassAnnotation(
             $reflectionClass,
-            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\FixtureSnapshot'
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot'
         );
 
         if ($fixtureSnapshotAnnotation !== null) {
