@@ -5,9 +5,9 @@ use Doctrine\Common\Annotations\Annotation;
 
 /**
  * @Annotation
- * @Target("PROPERTY")
+ * @Target({"CLASS", "PROPERTY"})
  */
-final class Property extends Annotation
+final class FixtureSnapshot extends Annotation
 {
-    public $ignoreInSnapshot = false;
+    public $ignore = false;
 }

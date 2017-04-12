@@ -24,7 +24,8 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
 
 /**
@@ -60,7 +61,8 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             ->addOption('snapshot', null, InputOption::VALUE_NONE, 'Create a full snapshot of DB.')
             ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Overwrite entity fixture file if already exist.')
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
-            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture or a prefix with snapshot option.')
+            ->addOption('name', null, InputOption::VALUE_OPTIONAL,
+                'Give a specific name to the fixture or a prefix with snapshot option.')
             ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture.')
             ->addOption(
                 'connectionName',
@@ -124,6 +126,7 @@ EOT
 
         if ($this->confirmGeneration === false && $this->snapshot === false) {
             $output->writeln('<error>Command aborted</error>');
+
             return 1;
         }
 
@@ -167,6 +170,7 @@ EOT
             $output->writeln('Generating the fixture code: <info>OK</info>');
         }
 
+        $output->writeln('<info>DONE!</info>');
         //all fine.
         return 0;
     }
@@ -236,9 +240,8 @@ EOT
              * @var ClassMetadata $meta
              */
             foreach ($metadatas as $mkey => $meta) {
-                $name = $meta->getName();
                 //check against last orders entities.
-                if ($this->isEntityLevelReached($meta, $entities)) {
+                if ($this->isEntityLevelReached($meta, $entities) && $this->isIgnoredEntity($meta) === false) {
                     $entity = new \stdClass();
                     $entity->level = $level;
                     $entity->name = $meta->getName();
@@ -262,18 +265,46 @@ EOT
     }
 
     /**
+     * Check if the entity should generate fixtures.
+     *
      * @param ClassMetadata $meta
-     * @param array $entities
+     *
      * @return bool
      */
-    protected function isEntityLevelReached(ClassMetadata $meta, array $entities){
-        $name = $meta->getName();
+    protected function isIgnoredEntity(ClassMetadata $meta)
+    {
+        $result = false;
+
+        $reader = new AnnotationReader();
+        $reflectionClass = $meta->getReflectionClass();
+        /** @var FixtureSnapshot $fixtureSnapshotAnnotation */
+        $fixtureSnapshotAnnotation = $reader->getClassAnnotation(
+            $reflectionClass,
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot'
+        );
+
+        if ($fixtureSnapshotAnnotation !== null) {
+            $result = $fixtureSnapshotAnnotation->ignore;
+        }
+
+        return $result;
+
+    }
+
+    /**
+     * @param ClassMetadata $meta
+     * @param array $entities
+     *
+     * @return bool
+     */
+    protected function isEntityLevelReached(ClassMetadata $meta, array $entities)
+    {
         $mappings = $meta->getAssociationMappings();
         $reader = new AnnotationReader();
 
         //if there is association, check if entity is already included to satisfy the requirement.
-        if (count($mappings) > 0){
-            foreach ($mappings as $mapping){
+        if (count($mappings) > 0) {
+            foreach ($mappings as $mapping) {
                 $propertyReflection = $meta->getReflectionProperty($mapping['fieldName']);
                 /** @var Property $propertyAnnotation */
                 $propertyAnnotation = $reader->getPropertyAnnotation(
@@ -281,17 +312,17 @@ EOT
                     'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
                 );
 
-                if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true){
+                if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
                     //ignore this mapping. (data will not be exported for that field.)
                     continue;
                 }
 
                 //prevent self mapping loop.
-                if ($mapping['targetEntity'] === $mapping['sourceEntity']){
+                if ($mapping['targetEntity'] === $mapping['sourceEntity']) {
                     continue;
                 }
 
-                if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false){
+                if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false) {
                     return false;
                 }
             }
@@ -301,9 +332,10 @@ EOT
 
     }
 
-    protected function mappingSatisfied($mapping, $entities){
-        foreach ($entities as $entity){
-            if ($entity->name === $mapping['targetEntity']){
+    protected function mappingSatisfied($mapping, $entities)
+    {
+        foreach ($entities as $entity) {
+            if ($entity->name === $mapping['targetEntity']) {
                 return true;
             }
         }
@@ -316,19 +348,38 @@ EOT
      *
      * @param $namespaces
      * @param $metaNamespace
+     *
      * @return mixed
      */
     protected function findBundleInterface($namespaces, $metaNamespace)
     {
-        $find = array_search($metaNamespace, $namespaces);
-        if ($find !== false) {
+        $namespaceParts = explode("\\", $metaNamespace);
+        $bundle = null;
+
+        if (count($namespaceParts) > 0) {
             /** @var Kernel $kernel */
             $kernel = $this->getContainer()->get('kernel');
-            $bundle = $kernel->getBundle($find);
-            return $bundle;
-        } else {
-            throw new \LogicException("No bundle found for entity namespace " . $metaNamespace);
+
+            do {
+                try {
+                    $find = array_search(implode("\\", $namespaceParts), $namespaces);
+                    if ($find !== false) {
+                        $bundle = $kernel->getBundle($find);
+                    }else{
+                        array_pop($namespaceParts);
+                    }
+                } catch (\InvalidArgumentException $e) {
+                    array_pop($namespaceParts);
+                }
+            } while ($bundle == null && count($namespaceParts) > 1);
+
         }
+
+        if ($bundle === null) {
+            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
+        }
+
+        return $bundle;
     }
 
     /**
@@ -464,8 +515,8 @@ EOT
                 );
 
                 $question = new Question(
-                    'The Entity shortcut name' . ($input->getOption('entity') != "" ?
-                        " (" . $input->getOption('entity') . ")" : "") . ' : ', $input->getOption('entity')
+                    'The Entity shortcut name'.($input->getOption('entity') != "" ?
+                        " (".$input->getOption('entity').")" : "").' : ', $input->getOption('entity')
                 );
                 $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
                 $question->setMaxAttempts(5);

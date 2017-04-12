@@ -371,7 +371,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif (is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection") {
                     continue;
                 } elseif (is_array($value)) {
-                    $setValue = "unserialize('" . serialize($value) . "')";
+                    $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
                 } else {
@@ -478,7 +478,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected function getNamespace()
     {
-        return $this->getBundleNameSpace().'\DataFixture\ORM;';
+        return $this->getBundleNameSpace().'\DataFixtures\ORM;';
     }
 
     /**
@@ -573,7 +573,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
     /**
      * @param string $fqcn
      *
-     * @throws InvalidArgumentException if the $fqcn argument is not a string
      * @return string
      */
     protected function getRelatedIdsForReference($fqcn, $value)
@@ -591,8 +590,12 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         if (!empty($identifiers)) {
             foreach ($identifiers as $identifier) {
                 $method = "get".ucfirst($identifier);
-                //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                $ret .= "_".$this->sanitizeSuspiciousSymbols($value->$method());
+                if (method_exists($value, $method)){
+                    //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
+                    $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
+                }else{
+                    $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier);
+                }
             }
         }
 
