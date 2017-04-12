@@ -6,6 +6,8 @@ DoctrineFixturesGeneratorBundle
 ==================================
 I am merging what I can in this branch from time to time. But I am not testing it. Feel free to create pull request to fix issues. It should work with Symfony < 3.x and PHP < 5.6.x
 
+==================================
+
 Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.
 
 Only ready stuff are publish on git for now. This is not a functional bundle!!!
