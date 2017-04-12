@@ -8,7 +8,9 @@
  */
 namespace FOS\TwitterBundle\Tests\DependencyInjection;
 
-class DoctrineFixturesGeneratorTest extends \PHPUnit_Framework_TestCase
+use PHPUnit\Framework\TestCase;
+
+class DoctrineFixturesGeneratorTest extends TestCase
 {
 
     /**

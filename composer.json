@@ -35,6 +35,10 @@
     "doctrine/doctrine-bundle": ">=1.2",
     "doctrine/doctrine-fixtures-bundle": ">=2.2"
   },
+  "require-dev": {
+    "phpunit/phpunit": "^6.0",
+    "symfony/phpunit-bridge": "dev-master"
+  },
   "autoload": {
     "psr-0": {"Webonaute\\DoctrineFixturesGeneratorBundle": ""}
   },

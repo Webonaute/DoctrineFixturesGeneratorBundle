@@ -49,7 +49,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
     {
         $this
             ->setName('doctrine:generate:fixture')
-            ->setAliases(array('generate:doctrine:fixture'))
+            ->setAliases(['generate:doctrine:fixture'])
             ->setDescription('Generates a new Doctrine entity fixture inside a bundle from existing data.')
             ->addOption(
                 'entity',
@@ -60,7 +60,8 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             ->addOption('snapshot', null, InputOption::VALUE_NONE, 'Create a full snapshot of DB.')
             ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Overwrite entity fixture file if already exist.')
             ->addOption('ids', null, InputOption::VALUE_OPTIONAL, 'Only create fixture for this specific ID.')
-            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'Give a specific name to the fixture or a prefix with snapshot option.')
+            ->addOption('name', null, InputOption::VALUE_OPTIONAL,
+                'Give a specific name to the fixture or a prefix with snapshot option.')
             ->addOption('order', null, InputOption::VALUE_OPTIONAL, 'Give a specific order to the fixture.')
             ->addOption(
                 'connectionName',
@@ -124,6 +125,7 @@ EOT
 
         if ($this->confirmGeneration === false && $this->snapshot === false) {
             $output->writeln('<error>Command aborted</error>');
+
             return 1;
         }
 
@@ -215,6 +217,7 @@ EOT
     /**
      *
      * @param array $metadatas
+     *
      * @return array
      */
     protected function getOrderedEntities(array $metadatas, $connectionName = "default")
@@ -264,16 +267,18 @@ EOT
     /**
      * @param ClassMetadata $meta
      * @param array $entities
+     *
      * @return bool
      */
-    protected function isEntityLevelReached(ClassMetadata $meta, array $entities){
+    protected function isEntityLevelReached(ClassMetadata $meta, array $entities)
+    {
         $name = $meta->getName();
         $mappings = $meta->getAssociationMappings();
         $reader = new AnnotationReader();
 
         //if there is association, check if entity is already included to satisfy the requirement.
-        if (count($mappings) > 0){
-            foreach ($mappings as $mapping){
+        if (count($mappings) > 0) {
+            foreach ($mappings as $mapping) {
                 $propertyReflection = $meta->getReflectionProperty($mapping['fieldName']);
                 /** @var Property $propertyAnnotation */
                 $propertyAnnotation = $reader->getPropertyAnnotation(
@@ -281,17 +286,17 @@ EOT
                     'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
                 );
 
-                if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true){
+                if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
                     //ignore this mapping. (data will not be exported for that field.)
                     continue;
                 }
 
                 //prevent self mapping loop.
-                if ($mapping['targetEntity'] === $mapping['sourceEntity']){
+                if ($mapping['targetEntity'] === $mapping['sourceEntity']) {
                     continue;
                 }
 
-                if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false){
+                if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false) {
                     return false;
                 }
             }
@@ -301,9 +306,10 @@ EOT
 
     }
 
-    protected function mappingSatisfied($mapping, $entities){
-        foreach ($entities as $entity){
-            if ($entity->name === $mapping['targetEntity']){
+    protected function mappingSatisfied($mapping, $entities)
+    {
+        foreach ($entities as $entity) {
+            if ($entity->name === $mapping['targetEntity']) {
                 return true;
             }
         }
@@ -316,19 +322,50 @@ EOT
      *
      * @param $namespaces
      * @param $metaNamespace
+     *
      * @return mixed
      */
     protected function findBundleInterface($namespaces, $metaNamespace)
     {
-        $find = array_search($metaNamespace, $namespaces);
-        if ($find !== false) {
-            /** @var Kernel $kernel */
+        $namespaceParts = explode("\\", $metaNamespace);
+        $bundle = null;
+
+        if (count($namespaceParts) > 0) {
             $kernel = $this->getContainer()->get('kernel');
-            $bundle = $kernel->getBundle($find);
-            return $bundle;
-        } else {
-            throw new \LogicException("No bundle found for entity namespace " . $metaNamespace);
+
+            do {
+                try {
+                    $find = array_search(implode("\\", $namespaceParts), $namespaces);
+                    if ($find !== false) {
+                        /** @var Kernel $kernel */
+                        $kernel = $this->getContainer()->get('kernel');
+                        $bundle = $kernel->getBundle($find);
+                    }else{
+                        array_pop($namespaceParts);
+                    }
+                } catch (\InvalidArgumentException $e) {
+                    array_pop($namespaceParts);
+                }
+            } while ($bundle == null && count($namespaceParts) > 1);
+
         }
+
+        if ($bundle === null) {
+            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
+        }
+
+        return $bundle;
+
+//        $find = array_search($metaNamespace, $namespaces);
+//        if ($find !== false) {
+//            /** @var Kernel $kernel */
+//            $kernel = $this->getContainer()->get('kernel');
+//            $bundle = $kernel->getBundle($find);
+//
+//            return $bundle;
+//        } else {
+//            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
+//        }
     }
 
     /**
@@ -340,7 +377,7 @@ EOT
      */
     private function parseIds($input)
     {
-        $ids = array();
+        $ids = [];
 
         if (is_array($input)) {
             return $input;
@@ -398,7 +435,7 @@ EOT
     private function extractRangeIds($string)
     {
         $rangesIds = explode('-', $string);
-        $result = array();
+        $result = [];
         //validate array should have 2 values and those 2 values are integer.
         if (count($rangesIds) == 2) {
             $begin = intval($rangesIds[0]);
@@ -414,11 +451,11 @@ EOT
     public function writeSection(OutputInterface $output, $text, $style = 'bg=blue;fg=white')
     {
         $output->writeln(
-            array(
+            [
                 '',
                 $this->getHelperSet()->get('formatter')->formatBlock($text, $style, true),
                 '',
-            )
+            ]
         );
     }
 
@@ -436,11 +473,11 @@ EOT
 
         // namespace
         $output->writeln(
-            array(
+            [
                 '',
                 'This command helps you generate Doctrine2 fixture.',
                 '',
-            )
+            ]
         );
 
         $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (Y/n)', false);
@@ -456,18 +493,18 @@ EOT
             while (true) {
 
                 $output->writeln(
-                    array(
+                    [
                         'First, you need to give the entity name you want to generate fixture from.',
                         'You must use the shortcut notation like <comment>AcmeBlogBundle:Post</comment>.',
-                        ''
-                    )
+                        '',
+                    ]
                 );
 
                 $question = new Question(
-                    'The Entity shortcut name' . ($input->getOption('entity') != "" ?
-                        " (" . $input->getOption('entity') . ")" : "") . ' : ', $input->getOption('entity')
+                    'The Entity shortcut name'.($input->getOption('entity') != "" ?
+                        " (".$input->getOption('entity').")" : "").' : ', $input->getOption('entity')
                 );
-                $question->setValidator(array('Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName'));
+                $question->setValidator(['Sensio\Bundle\GeneratorBundle\Command\Validators', 'validateEntityName']);
                 $question->setMaxAttempts(5);
                 $question->setAutocompleterValues($bundleNames);
                 $entity = $helper->ask($input, $output, $question);
@@ -484,10 +521,10 @@ EOT
                         //check if entity exist in the selected bundle.
                         $this->getContainer()
                             ->get("doctrine")->getManager($connectionName)
-                            ->getRepository($bundle . ":" . $entity);
+                            ->getRepository($bundle.":".$entity);
                         break;
                     } catch (\Exception $e) {
-                        print $e->getMessage() . "\n\n";
+                        print $e->getMessage()."\n\n";
                         $output->writeln(sprintf('<bg=red>Entity "%s" does not exist.</>', $entity));
                     }
 
@@ -495,7 +532,7 @@ EOT
                     $output->writeln(sprintf('<bg=red>Bundle "%s" does not exist.</>', $bundle));
                 }
             }
-            $input->setOption('entity', $bundle . ':' . $entity);
+            $input->setOption('entity', $bundle.':'.$entity);
 
             // ids
             $input->setOption('ids', $this->addIds($input, $output, $helper));
@@ -510,14 +547,14 @@ EOT
 
             // summary
             $output->writeln(
-                array(
+                [
                     '',
                     $this->getHelper('formatter')->formatBlock('Summary before generation', 'bg=blue;fg=white', true),
                     '',
                     sprintf("You are going to generate  \"<info>%s:%s</info>\" fixtures", $bundle, $entity),
                     sprintf("using the \"<info>%s</info>\" ids.", $count),
                     '',
-                )
+                ]
             );
 
             $this->confirmGeneration = false;
@@ -545,8 +582,8 @@ EOT
         while (true) {
             $output->writeln('');
             $question = new Question(
-                'New ID (press <return> to stop adding ids)' . (!empty($ids) ? " (" . implode(", ", $ids) . ")" : "")
-                . ' : ', null
+                'New ID (press <return> to stop adding ids)'.(!empty($ids) ? " (".implode(", ", $ids).")" : "")
+                .' : ', null
             );
             $question->setValidator(
                 function ($id) use ($ids) {
@@ -557,9 +594,10 @@ EOT
                         // If input for example "5-9"
                         if ($this->isRangeIds($id)) {
                             // whether there is only one or more duplicate numbers from given range
-                            $idsWord = count($duplicateIds) > 1? 'Ids' : 'Id';
+                            $idsWord = count($duplicateIds) > 1 ? 'Ids' : 'Id';
                             $duplicateIdsString = implode(', ', $duplicateIds);
-                            $msg = sprintf($idsWord.' "%s" from given range "%s" is already defined.', $duplicateIdsString, $id);
+                            $msg = sprintf($idsWord.' "%s" from given range "%s" is already defined.',
+                                $duplicateIdsString, $id);
                         } else {
                             $msg = sprintf('Id "%s" is already defined.', $id);
                         }
@@ -598,11 +636,10 @@ EOT
     {
         $name = $input->getOption('name');
 
-
         //should ask for the name.
         $output->writeln('');
 
-        $question = new Question('Fixture name' . ($name != "" ? " (" . $name . ")" : "") . ' : ', $name);
+        $question = new Question('Fixture name'.($name != "" ? " (".$name.")" : "").' : ', $name);
         $question->setValidator(
             function ($name) use ($input) {
                 if ($name == "" && count($input->getOption('ids')) > 1) {
@@ -639,7 +676,7 @@ EOT
         //should ask for the name.
         $output->writeln('');
 
-        $question = new Question('Fixture order' . ($order != "" ? " (" . $order . ")" : "") . ' : ', $order);
+        $question = new Question('Fixture order'.($order != "" ? " (".$order.")" : "").' : ', $order);
         $question->setValidator(
             function ($order) {
                 //allow numeric number including 0. but not 01 for example.
