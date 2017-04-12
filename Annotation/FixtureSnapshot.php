@@ -1,11 +1,11 @@
 <?php
-namespace Webonaute\DoctrineFixturesGeneratorBundle\Annotations;
+namespace Webonaute\DoctrineFixturesGeneratorBundle\Annotation;
 
 use Doctrine\Common\Annotations\Annotation;
 
 /**
  * @Annotation
- * @Target("CLASS", "PROPERTY")
+ * @Target({"CLASS", "PROPERTY"})
  */
 final class FixtureSnapshot extends Annotation
 {
