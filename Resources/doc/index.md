@@ -3,7 +3,7 @@ Getting Started With DoctrineFixturesGeneratorBundle
 
 ## Prerequisites
 
-This version of the bundle requires Symfony 2.3+.
+This version of the bundle requires Symfony 2.8.x OR 3.x.
 
 ## Installation
 
