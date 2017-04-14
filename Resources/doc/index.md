@@ -18,7 +18,7 @@ Installation is a quick (I promise!) 3 step process:
 Add Webonaute\DoctrineFixturesGeneratorBundle by running the command:
 
 ``` bash
-$ php composer.phar require --dev webonaute/doctrine-fixtures-generator-bundle 'dev-master'
+$ php composer.phar require webonaute/doctrine-fixtures-generator-bundle 'dev-master'
 ```
 
 Composer will install the bundle to your project's `vendor/Webonaute` directory.
