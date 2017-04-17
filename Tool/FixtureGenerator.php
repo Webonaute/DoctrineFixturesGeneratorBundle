@@ -13,7 +13,7 @@ use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
-use Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 
 /**
  * Generic class used to generate PHP5 fixture classes from existing data.
@@ -320,9 +320,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     public function generateFixtureItemStub($item)
     {
-        $metaProperties = $this->getMetadata()->getFieldNames();
-
-        $ids = $this->getRelatedIdsForReference(get_class($item), $item);
+        $class = get_class($item);
+        $ids = $this->getRelatedIdsForReference($class, $item);
 
         $code = "";
         $reflexion = new \ReflectionClass($item);
@@ -360,10 +359,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     if ($this->hasIgnoreProperty($property) === false) {
                         //check reference.
-                        $relatedEntity = ClassUtils::getRealClass(get_class($value));
+                        $relatedClass = get_class($value);
+                        $relatedEntity = ClassUtils::getRealClass($relatedClass);
                         $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
-                        $relatedReflexion = new \ReflectionClass($value);
-                        $setValue = "\$this->getReference('{$this->referencePrefix}{$relatedReflexion->getShortName()}$identifiersIdsString')";
+                        $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
                         $comment = "";
 
                     } else {
@@ -384,9 +383,13 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             }
         }
 
-        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
+        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
 
         return $code;
+    }
+
+    protected function getEntityNameForRef($entityFQN){
+        return str_replace("\\", "", $entityFQN);
     }
 
     protected function getRecursiveProperties(\ReflectionClass $reflection){
