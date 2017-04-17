@@ -85,7 +85,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
-<spaces><spaces>$manager->getClassMetadata(get_class(new <entityName>()))->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
+<spaces><spaces>$manager->getClassMetadata(<entityName>::class)->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
 <spaces>
 <spaces><spaces>$manager->flush();
@@ -320,11 +320,13 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     public function generateFixtureItemStub($item)
     {
+        $metaProperties = $this->getMetadata()->getFieldNames();
+
         $ids = $this->getRelatedIdsForReference(get_class($item), $item);
 
         $code = "";
         $reflexion = new \ReflectionClass($item);
-        $properties = $reflexion->getProperties();
+        $properties = $this->getRecursiveProperties($reflexion);
         $newInstance = $reflexion->newInstance();
 
         foreach ($properties as $property) {
@@ -385,6 +387,25 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$reflexion->getShortName()}{$ids}', \$item{$ids});";
 
         return $code;
+    }
+
+    protected function getRecursiveProperties(\ReflectionClass $reflection){
+        $properties = $reflection->getProperties();
+        $parentReflection = $reflection->getParentClass();
+        if ($parentReflection !== false){
+            $parentProperties = $this->getRecursiveProperties($parentReflection);
+            //only get private property.
+            $parentProperties = array_filter($parentProperties, function(\ReflectionProperty $property){
+                if ($property->isPrivate()){
+                    return true;
+                }else{
+                    return false;
+                }
+            });
+            $properties = array_merge($properties, $parentProperties);
+        }
+
+        return $properties;
     }
 
     /**
@@ -615,7 +636,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     protected function generateUse()
     {
-        return "use ".$this->getMetadata()->rootEntityName.";";
+        return "use ".$this->getMetadata()->name.";";
     }
 
     /**

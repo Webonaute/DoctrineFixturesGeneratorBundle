@@ -13,6 +13,7 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Sensio\Bundle\GeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -93,21 +94,50 @@ class DoctrineFixtureGenerator extends Generator
         $em = $this->registry->getManager($connectionName);
 
         /** @var EntityRepository $repo */
-        $repo = $em->getRepository($class->rootEntityName);
+        $repo = $em->getRepository($class->name);
         if (empty($ids)) {
             $items = $repo->findAll();
+            $items = array_filter($items, function($item) use ($entityClass){
+               if (get_class($item) === $entityClass){
+                   return true;
+               } else{
+                   return false;
+               }
+            });
         } else {
-            //@todo here we assume that you use `id` as primary key. Need to change it to reflect the primary property used by the entity.
-            $items = $repo->findById($ids);
+            $items = $repo->{$this->getFindByIdentifier($class)}($ids);
         }
 
         $fixtureGenerator->setItems($items);
 
-        $fixtureCode = $fixtureGenerator->generateFixtureClass($class);
+        $fixtureCode = $fixtureGenerator->generateFixtureClass();
 
         $this->filesystem->mkdir(dirname($fixturePath));
         file_put_contents($fixturePath, $fixtureCode);
 
+    }
+
+    /**
+     * Return the method name to get item by identifier of the entity.
+     *
+     * @param ClassMetadata $class
+     *
+     * @return string
+     * @throws \Exception
+     * @throws \LogicException
+     */
+    protected function getFindByIdentifier(ClassMetadata $class)
+    {
+        $identifiers = $class->getIdentifier();
+        if (count($identifiers) > 1){
+            throw new \Exception("Multiple identifiers is not supported.");
+        }
+
+        if (count($identifiers) === 0){
+            throw new \LogicException("This entity have no identifier.");
+        }
+
+        return "findBy".ucfirst($identifiers[0]);
     }
 
     /**

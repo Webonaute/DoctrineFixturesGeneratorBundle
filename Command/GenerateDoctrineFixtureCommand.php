@@ -27,6 +27,7 @@ use Symfony\Component\HttpKernel\Kernel;
 use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot;
 use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\DoctrineFixtureGenerator;
+use Webonaute\DoctrineFixturesGeneratorBundle\Generator\Entity;
 
 /**
  * Initializes a Doctrine entity fixture inside a bundle.
@@ -45,6 +46,12 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
      * @var bool
      */
     protected $snapshot = false;
+
+    /**
+     * @var OutputInterface
+     */
+    protected $output;
+
 
     protected function configure()
     {
@@ -122,6 +129,8 @@ EOT
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
+
         $this->snapshot = $input->getOption("snapshot");
 
         if ($this->confirmGeneration === false && $this->snapshot === false) {
@@ -140,7 +149,9 @@ EOT
             $entities = $this->getOrderedEntities($entitiesMetadata, $connectionName);
 
             if (!empty($entities)) {
+                $this->writeSection($output, 'Entities generation');
                 foreach ($entities as $entity) {
+                    $this->output->writeln("<info>Generating fixture (lvl {$entity->level}) for {$entity->name}</info>");
                     $generator->generate(
                         $entity->bundle,
                         $entity->name,
@@ -171,6 +182,7 @@ EOT
         }
 
         $output->writeln('<info>DONE!</info>');
+
         //all fine.
         return 0;
     }
@@ -185,6 +197,11 @@ EOT
         return parent::getGenerator($bundle);
     }
 
+    /**
+     * @param string $connectionName
+     *
+     * @return ClassMetadata[]
+     */
     protected function getEntitiesMetadata($connectionName = "default")
     {
         $classes = [];
@@ -196,9 +213,16 @@ EOT
 
         /** @var ClassMetadata $meta */
         foreach ($metas as $meta) {
-            if ($meta->isMappedSuperclass ||
-                ($meta->isInheritanceTypeSingleTable() && $meta->name != $meta->rootEntityName)
+
+            if ($meta->isMappedSuperclass
+                //|| ($meta->isInheritanceTypeSingleTable() && $meta->name != $meta->rootEntityName)
             ) {
+                $this->output->writeln("<comment>Skip mappedSuperClass entity ".$meta->getName()."</comment>");
+                continue;
+            }
+
+            if ($this->skipEntity($meta)){
+                $this->output->writeln("<comment>Skip entity ".$meta->getName()."</comment>");
                 continue;
             }
 
@@ -207,6 +231,12 @@ EOT
             // in src folder. Maybe add an options in the command who user can specify which bundle should store those.
             $class = $meta->getReflectionClass();
             if (strpos($class->getFileName(), "/vendor/")) {
+                $this->output->writeln("<comment>Skip vendor entity ".$meta->getName()."</comment>");
+                continue;
+            }
+
+            if ($meta->getReflectionClass()->isAbstract()) {
+                $this->output->writeln("<comment>Skip abstract entity ".$meta->getName()."</comment>");
                 continue;
             }
 
@@ -217,10 +247,34 @@ EOT
     }
 
     /**
+     * @param ClassMetadata $meta
+     *
+     * @return bool
+     */
+    protected function skipEntity($meta)
+    {
+        if ($meta->isMappedSuperclass
+            //|| ($meta->isInheritanceTypeSingleTable() && $meta->name != $meta->rootEntityName)
+        ) {
+            return true;
+        }
+
+        //ignore vendor entities.
+        // @todo data for entities in vendor directory should be created in a specified bundle container
+        // in src folder. Maybe add an options in the command who user can specify which bundle should store those.
+        $class = $meta->getReflectionClass();
+        if (strpos($class->getFileName(), "/vendor/")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      *
      * @param array $metadatas
      *
-     * @return array
+     * @return Entity[]
      */
     protected function getOrderedEntities(array $metadatas, $connectionName = "default")
     {
@@ -243,7 +297,7 @@ EOT
             foreach ($metadatas as $mkey => $meta) {
                 //check against last orders entities.
                 if ($this->isEntityLevelReached($meta, $entities) && $this->isIgnoredEntity($meta) === false) {
-                    $entity = new \stdClass();
+                    $entity = new Entity();
                     $entity->level = $level;
                     $entity->name = $meta->getName();
                     $entity->bundle = $this->findBundleInterface($namespaces, $meta->namespace);;
@@ -263,33 +317,6 @@ EOT
         } while (!empty($metadatas) && $level <= $countMeta);
 
         return $entities;
-    }
-
-    /**
-     * Check if the entity should generate fixtures.
-     *
-     * @param ClassMetadata $meta
-     *
-     * @return bool
-     */
-    protected function isIgnoredEntity(ClassMetadata $meta)
-    {
-        $result = false;
-
-        $reader = new AnnotationReader();
-        $reflectionClass = $meta->getReflectionClass();
-        /** @var FixtureSnapshot $fixtureSnapshotAnnotation */
-        $fixtureSnapshotAnnotation = $reader->getClassAnnotation(
-            $reflectionClass,
-            'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot'
-        );
-
-        if ($fixtureSnapshotAnnotation !== null) {
-            $result = $fixtureSnapshotAnnotation->ignore;
-        }
-
-        return $result;
-
     }
 
     /**
@@ -345,6 +372,33 @@ EOT
     }
 
     /**
+     * Check if the entity should generate fixtures.
+     *
+     * @param ClassMetadata $meta
+     *
+     * @return bool
+     */
+    protected function isIgnoredEntity(ClassMetadata $meta)
+    {
+        $result = false;
+
+        $reader = new AnnotationReader();
+        $reflectionClass = $meta->getReflectionClass();
+        /** @var FixtureSnapshot $fixtureSnapshotAnnotation */
+        $fixtureSnapshotAnnotation = $reader->getClassAnnotation(
+            $reflectionClass,
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\FixtureSnapshot'
+        );
+
+        if ($fixtureSnapshotAnnotation !== null) {
+            $result = $fixtureSnapshotAnnotation->ignore;
+        }
+
+        return $result;
+
+    }
+
+    /**
      * Return bundle name of entity namespace.
      *
      * @param $namespaces
@@ -366,7 +420,7 @@ EOT
                     $find = array_search(implode("\\", $namespaceParts), $namespaces);
                     if ($find !== false) {
                         $bundle = $kernel->getBundle($find);
-                    }else{
+                    } else {
                         array_pop($namespaceParts);
                     }
                 } catch (\InvalidArgumentException $e) {
@@ -495,7 +549,7 @@ EOT
             ]
         );
 
-        $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (Y/n)', false);
+        $question = new ConfirmationQuestion('Do you want to create a full snapshot ? (y/N)', false);
         $snapshot = $helper->ask($input, $output, $question);
 
         if ($snapshot === false) {
@@ -573,7 +627,7 @@ EOT
             );
 
             $this->confirmGeneration = false;
-            $question = new ConfirmationQuestion('Do you confirm generation ? (Y/n)', false);
+            $question = new ConfirmationQuestion('Do you confirm generation ? (y/N)', false);
             $this->confirmGeneration = $helper->ask($input, $output, $question);
         } else {
             $this->snapshot = true;
