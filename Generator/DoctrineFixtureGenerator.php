@@ -58,8 +58,9 @@ class DoctrineFixtureGenerator extends Generator
      * @param string $name
      * @param array $ids
      * @param string|null $connectionName
+     * @return bool
      */
-    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null, $overwrite = false, $isFqcnEntity = false)
+    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null, $overwrite = false, $isFqcnEntity = false, bool $skipEmptyFixture = false)
     {
         // configure the bundle (needed if the bundle does not contain any Entities yet)
         $config = $this->registry->getManager($connectionName)->getConfiguration();
@@ -110,11 +111,16 @@ class DoctrineFixtureGenerator extends Generator
 
         $fixtureGenerator->setItems($items);
 
+        //skip fixture who dont have data to import.
+        if ($skipEmptyFixture === true && count($items) === 0){
+            return false;
+        }
+
         $fixtureCode = $fixtureGenerator->generateFixtureClass();
 
         $this->filesystem->mkdir(dirname($fixturePath));
         file_put_contents($fixturePath, $fixtureCode);
-
+        return true;
     }
 
     /**

@@ -13,6 +13,7 @@ use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use Doctrine\ORM\PersistentCollection;
 use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 
 /**
@@ -329,6 +330,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $newInstance = $reflexion->newInstance();
 
         foreach ($properties as $property) {
+            $setValue = null;
             $property->setAccessible(true);
             $name = $property->getName();
             if (strpos($name, '_')) {
@@ -370,7 +372,24 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                         continue;
                     }
                 } elseif (is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection") {
-                    continue;
+                    /** @var PersistentCollection $value */
+                    $meta = $this->metadata->getAssociationMapping($property->getName());
+
+                    if ($meta['isOwningSide'] === true && $value->isEmpty() === false) {
+                        $setValue = "[\n";
+                        foreach ($value as $object) {
+                            $relatedClass = get_class($object);
+                            $relatedEntity = ClassUtils::getRealClass($relatedClass);
+                            $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $object);
+                            $setValue .= $this->spaces.$this->spaces.$this->spaces."\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString'),\n";
+                            $comment = "";
+                        }
+                        $setValue .= $this->spaces.$this->spaces."]";
+                    }else{
+                        //nothing to add.
+                        continue;
+                    }
+
                 } elseif (is_array($value)) {
                     $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
                 } elseif (is_null($value)) {
@@ -626,7 +645,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         /** @var Property $propertyAnnotation */
         $propertyAnnotation = $reader->getPropertyAnnotation(
             $propertyReflection,
-            'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
+            'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property'
         );
 
         if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {

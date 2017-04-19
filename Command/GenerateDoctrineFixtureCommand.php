@@ -52,6 +52,11 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
      */
     protected $output;
 
+    /**
+     * @var EntityManager
+     */
+    protected $entityManager;
+
 
     protected function configure()
     {
@@ -140,19 +145,21 @@ EOT
         }
 
         $connectionName = $input->getOption('connectionName');
+        /** @var EntityManager $em */
+        $this->entityManager = $this->getContainer()->get('doctrine')->getManager($connectionName);
+
         $name = $input->getOption('name');
         $generator = $this->getGenerator();
         $overwrite = $input->getOption("overwrite");
 
         if ($this->snapshot === true) {
             $entitiesMetadata = $this->getEntitiesMetadata($connectionName);
-            $entities = $this->getOrderedEntities($entitiesMetadata, $connectionName);
+            $entities = $this->getOrderedEntities($entitiesMetadata, $output);
 
             if (!empty($entities)) {
                 $this->writeSection($output, 'Entities generation');
                 foreach ($entities as $entity) {
-                    $this->output->writeln("<info>Generating fixture (lvl {$entity->level}) for {$entity->name}</info>");
-                    $generator->generate(
+                    $result = $generator->generate(
                         $entity->bundle,
                         $entity->name,
                         $generator->getFixtureNameFromEntityName($entity->name, [], $name),
@@ -160,8 +167,15 @@ EOT
                         $entity->level,
                         $connectionName,
                         $overwrite,
+                        true,
                         true
                     );
+                    if ($result){
+                        $tag = "info";
+                    }else{
+                        $tag = "comment";
+                    }
+                    $this->output->writeln("<$tag>Generated fixture (lvl {$entity->level}) for {$entity->name}</$tag>");
                 }
             }
         } else {
@@ -276,15 +290,13 @@ EOT
      *
      * @return Entity[]
      */
-    protected function getOrderedEntities(array $metadatas, $connectionName = "default")
+    protected function getOrderedEntities(array $metadatas, OutputInterface $output)
     {
         $level = 1;
         $countMeta = count($metadatas);
         $entities = [];
 
-        /** @var EntityManager $em */
-        $em = $this->getContainer()->get('doctrine')->getManager($connectionName);
-        $namespaces = $em->getConfiguration()->getEntityNamespaces();
+        $namespaces = $this->entityManager->getConfiguration()->getEntityNamespaces();
 
         do {
             //reset current level entities list
@@ -296,25 +308,36 @@ EOT
              */
             foreach ($metadatas as $mkey => $meta) {
                 //check against last orders entities.
-                if ($this->isEntityLevelReached($meta, $entities) && $this->isIgnoredEntity($meta) === false) {
-                    $entity = new Entity();
-                    $entity->level = $level;
-                    $entity->name = $meta->getName();
-                    $entity->bundle = $this->findBundleInterface($namespaces, $meta->namespace);;
-                    $entity->meta = $meta;
-                    //add to temporary group of entities.
-                    $entitiesCurrentOrder[] = $entity;
-
+                if ($this->isEntityLevelReached($meta, $entities)) {
+                    if ($this->isIgnoredEntity($meta) === false) {
+                        $entity = new Entity();
+                        $entity->level = $level;
+                        $entity->name = $meta->getName();
+                        $entity->bundle = $this->findBundleInterface($namespaces, $meta->namespace);;
+                        $entity->meta = $meta;
+                        //add to temporary group of entities.
+                        $entitiesCurrentOrder[] = $entity;
+                    }
                     //remove from meta to process.
                     unset($metadatas[$mkey]);
                 }
             }
-            $level++;
 
-            $entities = array_merge($entities, $entitiesCurrentOrder);
+            if (!empty($entitiesCurrentOrder)) {
+                $entities = array_merge($entities, $entitiesCurrentOrder);
+            }
+
             //repeat until all metadata are processed.
             //it can't have more level than number of entities so break if $level is superior to $countMeta.
+            $level++;
         } while (!empty($metadatas) && $level <= $countMeta);
+
+        //show entity who could not be ordered and get ignored.
+        if (!empty($metadatas)){
+            foreach ($metadatas as $meta) {
+                $output->writeln("<comment>Could not get ordered {$meta->getName()}</comment>");
+            }
+        }
 
         return $entities;
     }
@@ -337,8 +360,9 @@ EOT
                 /** @var Property $propertyAnnotation */
                 $propertyAnnotation = $reader->getPropertyAnnotation(
                     $propertyReflection,
-                    'Webonaute\DoctrineFixturesGeneratorBundle\Annotations\Property'
+                    'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property'
                 );
+                $annotations = $reader->getPropertyAnnotations($propertyReflection);
 
                 if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
                     //ignore this mapping. (data will not be exported for that field.)
@@ -351,6 +375,11 @@ EOT
                 }
 
                 if ($mapping['isOwningSide'] === true && $this->mappingSatisfied($mapping, $entities) === false) {
+                    // if mapping is made on abstract class with discriminator. ensure those are include before.
+                    if ($this->discriminatorSatisfied($mapping['targetEntity'], $entities)){
+                        continue;
+                    }
+
                     return false;
                 }
             }
@@ -358,6 +387,37 @@ EOT
 
         return true;
 
+    }
+
+    protected function discriminatorSatisfied($entity, $entities){
+        $entityMapping = $this->entityManager->getClassMetadata($entity);
+        $reflectionClass = $entityMapping->getReflectionClass();
+
+        if ($reflectionClass->isAbstract()){
+           if (!empty($entityMapping->discriminatorMap)){
+               foreach ($entityMapping->discriminatorMap as $discriminator){
+                   $found = false;
+                   if (!empty($entities)){
+                       foreach ($entities as $checkEntity) {
+                           if ($checkEntity->name === $discriminator) {
+                               $found = true;
+                               break;
+                           }
+                       }
+                   }
+
+                   if (!$found){
+                       return false;
+                   }
+               }
+           }else{
+               return false;
+           }
+        }else{
+            return false;
+        }
+
+        return true;
     }
 
     protected function mappingSatisfied($mapping, $entities)
