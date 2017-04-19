@@ -4,9 +4,6 @@ DoctrineFixturesGeneratorBundle
 
 Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.
 
-Only ready stuff are publish on git for now. This is not a functional bundle!!!
-
-
 Features include:
 
 - Create fixture from existing entity data.
@@ -17,8 +14,6 @@ Features include:
 - Snapshot : Create a full sets of fixtures from your current database.
 - Automatically set the load order in the snapshot context. (**NEW** Now support many to many relationship.)
 - Generate fixture reference when any other entity is link to this entity in the snapshot context.
-
-**Caution:** This bundle is a development bundle and actually in high development itself and should not be use on production server.
 
 Version note
 -------------
