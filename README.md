@@ -14,9 +14,9 @@ Features include:
 - Option to specify a ranges of ids to import in your fixture. (Thanks to [andreyserdjuk](https://github.com/andreyserdjuk))
 - Manually set load order for a fixture from command line. (Thanks to [ioniks](https://github.com/ioniks))
 - Allow to specify in the command line the specific load order we want for the generated fixture.
-- **NEW** Snapshot : Create a full sets of fixtures from your current database.
-- **NEW** Automatically set the load order in the snapshot context.
-- **NEW** Generate fixture reference when any other entity is link to this entity in the snapshot context.
+- Snapshot : Create a full sets of fixtures from your current database.
+- Automatically set the load order in the snapshot context. (**NEW** Now support many to many relationship.)
+- Generate fixture reference when any other entity is link to this entity in the snapshot context.
 
 **Caution:** This bundle is a development bundle and actually in high development itself and should not be use on production server.
 
