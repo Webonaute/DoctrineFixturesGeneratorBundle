@@ -37,7 +37,7 @@ public function registerBundles()
 {
     if (in_array($this->getEnvironment(), array('dev', 'test'))) {
         // ...
-        $bundles[] = new Webonaute\DoctrineFixturesGeneratorBundle\DoctrineFixturesGeneratorBundle(),
+        $bundles[] = new Webonaute\DoctrineFixturesGeneratorBundle\DoctrineFixturesGeneratorBundle();
         // ...
     }
 }
