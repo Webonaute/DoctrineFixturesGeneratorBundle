@@ -329,6 +329,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $properties = $this->getRecursiveProperties($reflexion);
         $newInstance = $reflexion->newInstance();
 
+        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
+        
         foreach ($properties as $property) {
             $setValue = null;
             $property->setAccessible(true);
@@ -402,7 +404,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             }
         }
 
-        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
+        $code .= "\n";
 
         return $code;
     }
