@@ -10,6 +10,7 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Tool;
 
 use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\Common\Persistence\Mapping\MappingException;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
@@ -362,13 +363,24 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     if ($this->hasIgnoreProperty($property) === false) {
-                        //check reference.
-                        $relatedClass = get_class($value);
-                        $relatedEntity = ClassUtils::getRealClass($relatedClass);
-                        $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
-                        $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
-                        $comment = "";
+                        try {
+                            if ($this->hasIgnoreProperty($property) === false) {
+                                //check reference.
+                                $relatedClass = get_class($value);
+                                $relatedEntity = ClassUtils::getRealClass($relatedClass);
+                                $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
+                                $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
+                                $comment = "";
 
+                            } else {
+                                //ignore data for this property.
+                                continue;
+                            }
+                        } catch (MappingException $e) {
+
+                            // Support for Doctrine Custom Mapping Types
+                            $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
+                        }
                     } else {
                         //ignore data for this property.
                         continue;
