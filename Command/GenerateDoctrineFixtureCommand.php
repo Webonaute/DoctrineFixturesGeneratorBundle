@@ -67,7 +67,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
             ->addOption(
                 'entity',
                 null,
-                InputOption::VALUE_REQUIRED,
+                InputOption::VALUE_NONE,
                 'The entity class name to initialize (shortcut notation)'
             )
             ->addOption('snapshot', null, InputOption::VALUE_NONE, 'Create a full snapshot of DB.')
