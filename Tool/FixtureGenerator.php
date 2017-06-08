@@ -10,10 +10,13 @@
 namespace Webonaute\DoctrineFixturesGeneratorBundle\Tool;
 
 use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\Common\Persistence\Mapping\MappingException;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Doctrine\ORM\PersistentCollection;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\ConstructorArguments;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\ConstructorDefaultArgument;
 use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
 
 /**
@@ -318,6 +321,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      * @param object $item
      *
      * @return string
+     *
+     * @throws \Exception
      */
     public function generateFixtureItemStub($item)
     {
@@ -326,8 +331,42 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
         $code = "";
         $reflexion = new \ReflectionClass($item);
+
+        /** @var array $constructorArguments */
+        $constructorArguments = [];
+
+        /** @var \ReflectionMethod $constructor */
+        if ($constructor = $reflexion->getConstructor()) {
+            /** @var AnnotationReader $reader */
+            $reader = new AnnotationReader();
+            /** @var ConstructorArguments $constructorArguments */
+            $constructorArgumentsAnnotation = $reader->getClassAnnotation(
+                $reflexion,
+                'Webonaute\DoctrineFixturesGeneratorBundle\Annotation\ConstructorArguments'
+            );
+
+            if ($constructorArgumentsAnnotation) {
+                foreach ($constructorArgumentsAnnotation->value as $k => $ca) {
+                    if (isset($ca['value'])) {
+                        $caValue = $ca['value'];
+                    } elseif (isset($ca['php'])) {
+                        eval('$caValue = ' . $ca['php'] . ';');
+                    } else {
+                        throw new \Exception(sprintf('Cannot determine constructor argument. [$s]', json_encode($ca)));
+                    }
+
+                    $constructorArguments[$k] = $caValue;
+                }
+            }
+        }
+
         $properties = $this->getRecursiveProperties($reflexion);
-        $newInstance = $reflexion->newInstance();
+
+        if (count($constructorArguments) > 0) {
+            $newInstance = $reflexion->newInstanceArgs($constructorArguments);
+        } else {
+            $newInstance = $reflexion->newInstance();
+        }
 
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
         
@@ -362,13 +401,17 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     if ($this->hasIgnoreProperty($property) === false) {
-                        //check reference.
-                        $relatedClass = get_class($value);
-                        $relatedEntity = ClassUtils::getRealClass($relatedClass);
-                        $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
-                        $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
-                        $comment = "";
-
+                        try {
+                            //check reference.
+                            $relatedClass = get_class($value);
+                            $relatedEntity = ClassUtils::getRealClass($relatedClass);
+                            $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
+                            $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
+                            $comment = "";
+                        } catch (MappingException $e) {
+                            // Support for Doctrine Custom Mapping Types
+                            $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
+                        }
                     } else {
                         //ignore data for this property.
                         continue;
@@ -630,10 +673,16 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 $method = "get".ucfirst($identifier);
                 if (method_exists($value, $method)){
                     //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                    $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
+                    $methodReturn = $value->$method();
                 }else{
-                    $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier);
+                    $methodReturn = $value->$identifier;
                 }
+
+                if (is_object($methodReturn)) {
+                    $methodReturn = get_class($methodReturn);
+                }
+
+                $ret .= $this->sanitizeSuspiciousSymbols($methodReturn);
             }
         }
 
@@ -683,6 +732,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     private function sanitizeSuspiciousSymbols($string)
     {
+        if (is_object($string)) {
+            $r = 123;
+            echo $r;
+        }
+
         $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
 
         return $sanitizedString;

@@ -64,6 +64,47 @@ It will create one file per entity you have in your project, it will create it i
 
 If you have entity relation, the load order will be automatically set according to that.
 
+### Contructor arguments
+If your entity constructor requires some arguments they can be described in class annotation:
+
+```php
+// src/AppBundle/Entity/MyEntity.php
+namespace AppBundle\Entity
+
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\ConstructorArguments;
+
+/**
+ * @ConstructorArguments(
+ *     value={
+ *       "article" : {"value"  : "This is string"},
+ *     }
+ * )
+ */
+class MyEntity 
+{
+    public function __constructor(sring $string) {}
+}
+```
+```php
+// src/AppBundle/Entity/Comment.php
+namespace AppBundle\Entity
+
+use AppBundle\Entity\Article;
+use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\ConstructorArguments;
+
+/**
+ * @ConstructorArguments(
+ *     value={
+ *       "article" : {"php"  : "new \AppBundle\Entity\Article()"},
+ *     }
+ * )
+ */
+class Coment 
+{
+    public function __constructor(Article $article) {}
+}
+```
+
 ## Property Annotation
 You can set a column to not be imported at all into your fixture.
 To do so, you can add this annotation to any property of your entity. 
