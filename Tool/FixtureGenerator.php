@@ -366,7 +366,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                         $relatedClass = get_class($value);
                         $relatedEntity = ClassUtils::getRealClass($relatedClass);
                         $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
-                        $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
+                        $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedEntity)}$identifiersIdsString')";
                         $comment = "";
 
                     } else {
@@ -383,7 +383,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                             $relatedClass = get_class($object);
                             $relatedEntity = ClassUtils::getRealClass($relatedClass);
                             $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $object);
-                            $setValue .= $this->spaces.$this->spaces.$this->spaces."\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString'),\n";
+                            $setValue .= $this->spaces.$this->spaces.$this->spaces."\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedEntity)}$identifiersIdsString'),\n";
                             $comment = "";
                         }
                         $setValue .= $this->spaces.$this->spaces."]";
