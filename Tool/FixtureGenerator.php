@@ -325,9 +325,29 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $ids = $this->getRelatedIdsForReference($class, $item);
 
         $code = "";
+        $constructorParams = [];
         $reflexion = new \ReflectionClass($item);
         $properties = $this->getRecursiveProperties($reflexion);
-        $newInstance = $reflexion->newInstance();
+        if (null !== $reflexion->getConstructor()) {
+            foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
+                if ($parameter->isDefaultValueAvailable()) {
+                    continue;
+                }
+                $paramName = $parameter->getName();
+                if ($reflexion->hasMethod('get'.ucfirst($paramName))) {
+                    $constructorParams[] = $item->{'get'.ucfirst($paramName)}();
+                } elseif ($reflexion->hasProperty($paramName)) {
+                    $reflectionProperty = $reflexion->getProperty($paramName);
+                    $reflectionProperty->setAccessible(true);
+                    $constructorParams[] = $reflectionProperty->getValue($item);
+                }
+            }
+        }
+        if (!empty($constructorParams)) {
+            $newInstance = call_user_func_array(array($reflexion, 'newInstance'), $constructorParams);
+        } else {
+            $newInstance = $reflexion->newInstance();
+        }
 
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
         
