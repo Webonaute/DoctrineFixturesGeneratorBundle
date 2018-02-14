@@ -360,6 +360,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     }
                 } elseif ($value instanceof \DateTime) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
+                } elseif ($value instanceof \libphonenumber\PhoneNumber) {
+                    $setValue = "\\libphonenumber\\PhoneNumberUtil::getInstance()->parse(\"".$value->getNationalNumber()."\")";
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     if ($this->hasIgnoreProperty($property) === false) {
                         //check reference.
