@@ -60,13 +60,13 @@ class DoctrineFixtureGenerator extends Generator
      * @param string|null $connectionName
      * @return bool
      */
-    public function generate(BundleInterface $bundle, $entity, $name, array $ids, $order, $connectionName = null, $overwrite = false, $isFqcnEntity = false, bool $skipEmptyFixture = false)
+    public function generate($bundle, $entity, $name, array $ids, $order, $connectionName = null, $overwrite = false, $isFqcnEntity = false, bool $skipEmptyFixture = false)
     {
         // configure the bundle (needed if the bundle does not contain any Entities yet)
         $config = $this->registry->getManager($connectionName)->getConfiguration();
         $config->setEntityNamespaces(
             array_merge(
-                array($bundle->getName() => $bundle->getNamespace() . '\\Entity'),
+                array($bundle . '\\Entity'),
                 $config->getEntityNamespaces()
             )
         );
@@ -74,8 +74,8 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureFileName = $this->getFixtureFileName($entity, $name, $ids);
         $entityClass = $this->getFqcnEntityClass($entity, $bundle, $isFqcnEntity);
 
-        $fixturePath = $bundle->getPath() . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
-        $bundleNameSpace = $bundle->getNamespace();
+        $fixturePath = $bundle . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
+        $bundleNameSpace = $bundle;
         if ($overwrite === false && file_exists($fixturePath)) {
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));
         }
@@ -202,12 +202,12 @@ class DoctrineFixtureGenerator extends Generator
         return $name;
     }
 
-    protected function getFqcnEntityClass($entity, BundleInterface $bundle, $isFqcnEntity = false)
+    protected function getFqcnEntityClass($entity, $bundle, $isFqcnEntity = false)
     {
         if ($isFqcnEntity) {
             return $entity;
         } else {
-            return $this->registry->getAliasNamespace($bundle->getName()) . '\\' . $entity;
+            return $this->registry->getAliasNamespace($bundle) . '\\' . $entity;
         }
     }
 
