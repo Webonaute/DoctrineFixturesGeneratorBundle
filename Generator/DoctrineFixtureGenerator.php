@@ -14,7 +14,7 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
-use Sensio\Bundle\GeneratorBundle\Generator\Generator;
+use Webonaute\DoctrineFixturesGeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
