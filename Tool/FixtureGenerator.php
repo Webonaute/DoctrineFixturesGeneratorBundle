@@ -690,11 +690,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * @param             $item
-     * @param \Reflection $reflexion
+     * @param \ReflectionClass $reflexion
      *
      * @return mixed
      */
-    private function getNewInstance($item, \Reflection $reflexion)
+    private function getNewInstance($item, \ReflectionClass $reflexion)
     {
         if (null === $reflexion->getConstructor()) {
             return $reflexion->newInstance();
@@ -709,11 +709,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * @param             $item
-     * @param \Reflection $reflexion
+     * @param \ReflectionClass $reflexion
      *
      * @return array
      */
-    private function getConstructorParams($item, \Reflection $reflexion): array
+    private function getConstructorParams($item, \ReflectionClass $reflexion): array
     {
         $constructorParams = [];
         foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
