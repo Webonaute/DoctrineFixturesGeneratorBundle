@@ -26,7 +26,6 @@ use Webonaute\DoctrineFixturesGeneratorBundle\Annotation\Property;
  *     $generator->setRegenerateEntityIfExists(false);
  *     $generator->setUpdateEntityIfExists(true);
  *     $generator->generate($classes, '/path/to/generate/entities');
- *
  * @author  Mathieu Delisle <mdelisle@webonaute.ca>
  */
 class FixtureGenerator
@@ -105,14 +104,12 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * The class all generated entities should extend.
-     *
      * @var string
      */
     protected $classToExtend = "AbstractFixture implements OrderedFixtureInterface";
 
     /**
      * The extension to use for written php files.
-     *
      * @var string
      */
     protected $extension = '.php';
@@ -124,14 +121,12 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * Whether or not the current ClassMetadataInfo instance is new or old.
-     *
      * @var boolean
      */
     protected $isNew = true;
 
     /**
      * Array of data to generate item stubs.
-     *
      * @var array
      */
     protected $items = array();
@@ -154,7 +149,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * The actual spaces to use for indention.
-     *
      * @var string
      */
     protected $spaces = '    ';
@@ -168,6 +162,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      * @var string
      */
     protected $referencePrefix = '_reference_';
+
     /**
      * @var EntityManagerInterface
      */
@@ -203,11 +198,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     public function writeFixtureClass($outputDirectory)
     {
-        $path = $outputDirectory . '/' . str_replace(
+        $path = $outputDirectory.'/'.str_replace(
                 '\\',
                 DIRECTORY_SEPARATOR,
                 $this->getFixtureName()
-            ) . $this->extension;
+            ).$this->extension;
         $dir = dirname($path);
 
         if (!is_dir($dir)) {
@@ -217,7 +212,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $this->isNew = !file_exists($path) || (file_exists($path) && $this->regenerateEntityIfExists);
 
         if ($this->backupExisting && file_exists($path)) {
-            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
+            $backupPath = dirname($path).DIRECTORY_SEPARATOR.basename($path)."~";
             if (!copy($path, $backupPath)) {
                 throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
             }
@@ -248,7 +243,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * Generates a PHP5 Doctrine 2 entity class from the given ClassMetadataInfo instance.
-     *
      * @return string
      */
     public function generateFixtureClass()
@@ -325,32 +319,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $ids = $this->getRelatedIdsForReference($class, $item);
 
         $code = "";
-        $constructorParams = [];
         $reflexion = new \ReflectionClass($item);
         $properties = $this->getRecursiveProperties($reflexion);
-        if (null !== $reflexion->getConstructor()) {
-            foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
-                if ($parameter->isDefaultValueAvailable()) {
-                    continue;
-                }
-                $paramName = $parameter->getName();
-                if ($reflexion->hasMethod('get'.ucfirst($paramName))) {
-                    $constructorParams[] = $item->{'get'.ucfirst($paramName)}();
-                } elseif ($reflexion->hasProperty($paramName)) {
-                    $reflectionProperty = $reflexion->getProperty($paramName);
-                    $reflectionProperty->setAccessible(true);
-                    $constructorParams[] = $reflectionProperty->getValue($item);
-                }
-            }
-        }
-        if (!empty($constructorParams)) {
-            $newInstance = call_user_func_array(array($reflexion, 'newInstance'), $constructorParams);
-        } else {
-            $newInstance = $reflexion->newInstance();
-        }
+        $newInstance = $this->getNewInstance($item, $reflexion);
 
-        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
-        
         foreach ($properties as $property) {
             $setValue = null;
             $property->setAccessible(true);
@@ -362,8 +334,8 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 }
                 $name = implode('', $_names);
             }
-            $setter = "set" . ucfirst($name);
-            $getter = "get" . ucfirst($name);
+            $setter = "set".ucfirst($name);
+            $getter = "get".ucfirst($name);
             $comment = "";
             if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
@@ -379,7 +351,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                         $setValue = "false";
                     }
                 } elseif ($value instanceof \DateTime) {
-                    $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
+                    $setValue = "new \\DateTime(\"".$value->format("Y-m-d H:i:s")."\")";
+                } elseif ($value instanceof \libphonenumber\PhoneNumber) {
+                    $setValue = "\\libphonenumber\\PhoneNumberUtil::getInstance()->parse(\"".$value->getNationalNumber(
+                        )."\")";
                 } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
                     if ($this->hasIgnoreProperty($property) === false) {
                         //check reference.
@@ -388,7 +363,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                         $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $value);
                         $setValue = "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedClass)}$identifiersIdsString')";
                         $comment = "";
-
                     } else {
                         //ignore data for this property.
                         continue;
@@ -407,45 +381,49 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                             $comment = "";
                         }
                         $setValue .= $this->spaces.$this->spaces."]";
-                    }else{
+                    } else {
                         //nothing to add.
                         continue;
                     }
-
                 } elseif (is_array($value)) {
-                    $setValue = "unserialize('" . str_replace(['\''], ['\\\''], serialize($value)) . "')";
+                    $setValue = "unserialize('".str_replace(['\''], ['\\\''], serialize($value))."')";
                 } elseif (is_null($value)) {
                     $setValue = "NULL";
                 } else {
-                    $setValue = '"' . str_replace(['"', '$'], ['\"', '\$'], $value) . '"';
+                    $setValue = '"'.str_replace(['"', '$'], ['\"', '\$'], $value).'"';
                 }
 
                 $code .= "\n<spaces><spaces>{$comment}\$item{$ids}->{$setter}({$setValue});";
             }
         }
 
-        $code .= "\n";
+        $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
 
         return $code;
     }
 
-    protected function getEntityNameForRef($entityFQN){
+    protected function getEntityNameForRef($entityFQN)
+    {
         return str_replace("\\", "", $entityFQN);
     }
 
-    protected function getRecursiveProperties(\ReflectionClass $reflection){
+    protected function getRecursiveProperties(\ReflectionClass $reflection)
+    {
         $properties = $reflection->getProperties();
         $parentReflection = $reflection->getParentClass();
-        if ($parentReflection !== false){
+        if ($parentReflection !== false) {
             $parentProperties = $this->getRecursiveProperties($parentReflection);
             //only get private property.
-            $parentProperties = array_filter($parentProperties, function(\ReflectionProperty $property){
-                if ($property->isPrivate()){
-                    return true;
-                }else{
-                    return false;
+            $parentProperties = array_filter(
+                $parentProperties,
+                function (\ReflectionProperty $property) {
+                    if ($property->isPrivate()) {
+                        return true;
+                    } else {
+                        return false;
+                    }
                 }
-            });
+            );
             $properties = array_merge($properties, $parentProperties);
         }
 
@@ -648,10 +626,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         if (!empty($identifiers)) {
             foreach ($identifiers as $identifier) {
                 $method = "get".ucfirst($identifier);
-                if (method_exists($value, $method)){
+                if (method_exists($value, $method)) {
                     //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
                     $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
-                }else{
+                } else {
                     $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier);
                 }
             }
@@ -698,7 +676,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 
     /**
      * sanitize illegal symbols in variable name suffix
+     *
      * @param string $string
+     *
      * @return string
      */
     private function sanitizeSuspiciousSymbols($string)
@@ -706,6 +686,51 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
 
         return $sanitizedString;
+    }
+
+    /**
+     * @param             $item
+     * @param \Reflection $reflexion
+     *
+     * @return mixed
+     */
+    private function getNewInstance($item, \Reflection $reflexion)
+    {
+        if (null === $reflexion->getConstructor()) {
+            return $reflexion->newInstance();
+        }
+        $constructorParams = $this->getConstructorParams($item, $reflexion);
+        if (empty($constructorParams)) {
+            return $reflexion->newInstance();
+        }
+
+        return call_user_func_array(array($reflexion, 'newInstance'), $constructorParams);
+    }
+
+    /**
+     * @param             $item
+     * @param \Reflection $reflexion
+     *
+     * @return array
+     */
+    private function getConstructorParams($item, \Reflection $reflexion): array
+    {
+        $constructorParams = [];
+        foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                continue;
+            }
+            $paramName = $parameter->getName();
+            if ($reflexion->hasMethod('get'.ucfirst($paramName))) {
+                $constructorParams[] = $item->{'get'.ucfirst($paramName)}();
+            } elseif ($reflexion->hasProperty($paramName)) {
+                $reflectionProperty = $reflexion->getProperty($paramName);
+                $reflectionProperty->setAccessible(true);
+                $constructorParams[] = $reflectionProperty->getValue($item);
+            }
+        }
+
+        return $constructorParams;
     }
 
 }
