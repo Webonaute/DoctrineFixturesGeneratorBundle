@@ -72,7 +72,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected static $getItemFixtureTemplate
         = '
-    <spaces>$item<itemCount> = new <entityName>();<itemStubs>
+    <spaces>$item<itemCount> = new <entityName>(<entityParams>);<itemStubs>
     <spaces>$manager->persist($item<itemCount>);
 ';
 
@@ -600,14 +600,21 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             '<itemCount>',
             '<entityName>',
             '<itemStubs>',
+            '<entityParams>',
         ];
 
         $reflexionClass = new \ReflectionClass($item);
+        $constructorParams = $this->getConstructorParams($item, $reflexionClass);
+        $constructorParamString = '';
+        if (!empty($constructorParams)) {
+            $constructorParamString = "'".implode("', '", $constructorParams)."'";
+        }
 
         $replacements = [
             $this->getRelatedIdsForReference(get_class($item), $item),
             $reflexionClass->getShortName(),
             $this->generateFixtureItemStub($item),
+            $constructorParamString
         ];
 
         $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
