@@ -2,7 +2,7 @@ DoctrineFixturesGeneratorBundle
 ===============================
 [![Latest Stable Version](https://poser.pugx.org/webonaute/doctrine-fixtures-generator-bundle/v/stable.svg)](https://packagist.org/packages/webonaute/doctrine-fixtures-generator-bundle) [![Total Downloads](https://poser.pugx.org/webonaute/doctrine-fixtures-generator-bundle/downloads.svg)](https://packagist.org/packages/webonaute/doctrine-fixtures-generator-bundle) [![Latest Unstable Version](https://poser.pugx.org/webonaute/doctrine-fixtures-generator-bundle/v/unstable.svg)](https://packagist.org/packages/webonaute/doctrine-fixtures-generator-bundle) [![License](https://poser.pugx.org/webonaute/doctrine-fixtures-generator-bundle/license.svg)](https://packagist.org/packages/webonaute/doctrine-fixtures-generator-bundle)
 
-[Symfony4] Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.
+Generate Fixture from your existing data in your database. You can specify the Entity name and the IDs you want to import in your fixture.
 
 Features include:
 
@@ -18,7 +18,9 @@ Features include:
 Version note
 -------------
 
-- Our fork is tested with Symfony 4 and PHP 7.0
+-- For symfony 2.3 and 2.4, use the version v1.0.*
+-- For symfony 2.5 and over, use the version v1.1.* or dev-master.
+-- Our version 1.3 is tested with symfony >=2.7 and PHP 7.0
 
 Documentation
 -------------
