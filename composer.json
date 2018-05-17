@@ -43,5 +43,10 @@
   "autoload": {
     "psr-0": {"Webonaute\\DoctrineFixturesGeneratorBundle": ""}
   },
-  "target-dir": "Webonaute/DoctrineFixturesGeneratorBundle"
+  "target-dir": "Webonaute/DoctrineFixturesGeneratorBundle",
+  "extra": {
+        "branch-alias": {
+            "dev-master": "2.0-dev"
+        }
+    }
 }
