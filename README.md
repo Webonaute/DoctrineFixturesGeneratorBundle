@@ -17,9 +17,10 @@ Features include:
 
 Version note
 -------------
+
 - For symfony 2.3 and 2.4, use the version v1.0.*
-- For symfony 2.5 and over, use the version v1.1.* or dev-master.
-- Our version 1.3 is tested with symfony >=2.7 and PHP 7.0
+- For symfony 2.5 and to 3.4, use the version v1.3.*
+- For symfony 4.x and over, use version v2.x or 2.0-dev (master) .
 
 Documentation
 -------------
