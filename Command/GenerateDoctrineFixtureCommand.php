@@ -14,8 +14,8 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Command;
 use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\ClassMetadata;
-use Sensio\Bundle\GeneratorBundle\Command\GenerateDoctrineCommand;
-use Sensio\Bundle\GeneratorBundle\Command\Validators;
+use Webonaute\DoctrineFixturesGeneratorBundle\Command\GenerateDoctrineCommand;
+use Webonaute\DoctrineFixturesGeneratorBundle\Command\Validators;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -188,9 +188,9 @@ EOT
             $this->writeSection($output, 'Entity generation');
             /** @var Kernel $kernel */
             $kernel = $this->getContainer()->get('kernel');
-            $bundle = $kernel->getBundle($bundle);
+//            $bundle = $kernel->getBundle($bundle);
 
-            $generator->generate($bundle, $entity, $name, array_values($ids), $order, $connectionName, $overwrite);
+            $generator->generate('App', $entity, $name, array_values($ids), $order, $connectionName, $overwrite);
 
             $output->writeln('Generating the fixture code: <info>OK</info>');
         }

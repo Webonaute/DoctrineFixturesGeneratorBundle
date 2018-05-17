@@ -1,0 +1,8 @@
+parameters:
+	excludes_analyse:
+		- */Tests/*
+		- */DataFixtures/*
+		- */parameters.php
+		- */GroupsFilterQueryTrait.php
+#	ignoreErrors:
+#		- '#Call to an undefined method Predis\\Client::[a-zA-Z\\\.]+#'
