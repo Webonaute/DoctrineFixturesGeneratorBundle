@@ -71,7 +71,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     protected static $getItemFixtureTemplate
         = '
-    <spaces>$item<itemCount> = new <entityName>();<itemStubs>
+    <spaces>$item<itemCount> = new <entityName>(<entityParams>);<itemStubs>
     <spaces>$manager->persist($item<itemCount>);
 ';
 
@@ -326,10 +326,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         $code = "";
         $reflexion = new \ReflectionClass($item);
         $properties = $this->getRecursiveProperties($reflexion);
-        $newInstance = $reflexion->newInstance();
+        $newInstance = $this->getNewInstance($item,$reflexion);
 
         $code .= "\n<spaces><spaces>\$this->addReference('{$this->referencePrefix}{$this->getEntityNameForRef($class)}{$ids}', \$item{$ids});";
-        
+
         foreach ($properties as $property) {
             $setValue = null;
             $property->setAccessible(true);
@@ -599,14 +599,21 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             '<itemCount>',
             '<entityName>',
             '<itemStubs>',
+            '<entityParams>',
         ];
 
         $reflexionClass = new \ReflectionClass($item);
+        $constructorParams = $this->getConstructorParams($item, $reflexionClass);
+        $constructorParamString = '';
+        if (!empty($constructorParams)) {
+            $constructorParamString = "'".implode("', '", $constructorParams)."'";
+        }
 
         $replacements = [
             $this->getRelatedIdsForReference(get_class($item), $item),
             $reflexionClass->getShortName(),
             $this->generateFixtureItemStub($item),
+            $constructorParamString
         ];
 
         $code = str_replace($placeHolders, $replacements, self::$getItemFixtureTemplate);
@@ -687,4 +694,48 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         return $sanitizedString;
     }
 
+    /**
+     * @param             $item
+     * @param \ReflectionClass $reflexion
+     *
+     * @return mixed
+     */
+    private function getNewInstance($item, \ReflectionClass $reflexion)
+    {
+        if (null === $reflexion->getConstructor()) {
+            return $reflexion->newInstance();
+        }
+        $constructorParams = $this->getConstructorParams($item, $reflexion);
+        if (empty($constructorParams)) {
+            return $reflexion->newInstance();
+        }
+
+        return call_user_func_array(array($reflexion, 'newInstance'), $constructorParams);
+    }
+
+    /**
+     * @param             $item
+     * @param \ReflectionClass $reflexion
+     *
+     * @return array
+     */
+    private function getConstructorParams($item, \ReflectionClass $reflexion): array
+    {
+        $constructorParams = [];
+        foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                continue;
+            }
+            $paramName = $parameter->getName();
+            if ($reflexion->hasMethod('get'.ucfirst($paramName))) {
+                $constructorParams[] = $item->{'get'.ucfirst($paramName)}();
+            } elseif ($reflexion->hasProperty($paramName)) {
+                $reflectionProperty = $reflexion->getProperty($paramName);
+                $reflectionProperty->setAccessible(true);
+                $constructorParams[] = $reflectionProperty->getValue($item);
+            }
+        }
+
+        return $constructorParams;
+    }
 }
