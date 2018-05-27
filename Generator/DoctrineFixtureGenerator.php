@@ -66,15 +66,15 @@ class DoctrineFixtureGenerator extends Generator
         $config = $this->registry->getManager($connectionName)->getConfiguration();
         $config->setEntityNamespaces(
             array_merge(
-                array($bundle . '\\Entity'),
+                array('App' . '\\Entity'),
                 $config->getEntityNamespaces()
             )
         );
 
         $fixtureFileName = $this->getFixtureFileName($entity, $name, $ids);
-        $entityClass = $this->getFqcnEntityClass($entity, $bundle, $isFqcnEntity);
+        $entityClass = $this->getFqcnEntityClass($entity, 'App', $isFqcnEntity);
 
-        $fixturePath = $bundle . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
+        $fixturePath = $bundle . '/DataFixtures/ORM/Load' . $entity . 'Data.php';
         $bundleNameSpace = $bundle;
         if ($overwrite === false && file_exists($fixturePath)) {
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));
