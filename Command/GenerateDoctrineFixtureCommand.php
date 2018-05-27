@@ -190,7 +190,7 @@ EOT
             $kernel = $this->getContainer()->get('kernel');
 //            $bundle = $kernel->getBundle($bundle);
 
-            $generator->generate('App', $entity, $name, array_values($ids), $order, $connectionName, $overwrite);
+            $generator->generate('src', $entity, $name, array_values($ids), $order, $connectionName, $overwrite);
 
             $output->writeln('Generating the fixture code: <info>OK</info>');
         }
