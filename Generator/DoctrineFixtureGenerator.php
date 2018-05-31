@@ -75,6 +75,9 @@ class DoctrineFixtureGenerator extends Generator
         $entityClass = $this->getFqcnEntityClass($entity, 'App', $isFqcnEntity);
 
         $fixturePath = $bundle . '/DataFixtures/ORM/Load' . $entity . 'Data.php';
+        // $entityRight = str_replace("/\", "/", $entity);
+        // $fixturePath = $bundle . '/DataFixtures/ORM/Load' . $entityRight . 'Data.php';
+
         $bundleNameSpace = $bundle;
         if ($overwrite === false && file_exists($fixturePath)) {
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));
@@ -117,9 +120,14 @@ class DoctrineFixtureGenerator extends Generator
         }
 
         $fixtureCode = $fixtureGenerator->generateFixtureClass();
+        // if(strrpos($fixtureCode, "LoadAppEntityParameter")) return false; // pfv
 
-        $this->filesystem->mkdir(dirname($fixturePath));
-        file_put_contents($fixturePath, $fixtureCode);
+        // 20180531_pfv_1 - Ошибка создания новой директории для фикстур
+        $fixturePath1 = "/home/felix/www/vitagramma/src" . str_replace("\\", "", $fixturePath);
+        // $this->filesystem->mkdir(dirname($fixturePath));
+        file_put_contents($fixturePath1, $fixtureCode);
+        // 20180531_pfv_1
+
         return true;
     }
 
