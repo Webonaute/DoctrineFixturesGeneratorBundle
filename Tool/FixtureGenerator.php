@@ -659,9 +659,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         if ($propertyAnnotation !== null && $propertyAnnotation->ignoreInSnapshot === true) {
             //ignore this mapping. (data will not be exported for that field.)
             return true;
-        } else {
-            return false;
         }
+
+        return false;
     }
 
     protected function generateUse()
@@ -721,6 +721,10 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     private function getConstructorParams($item, \ReflectionClass $reflexion): array
     {
+        if (is_null($reflexion->getConstructor())) {
+            return [];
+        }
+
         $constructorParams = [];
         foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {
