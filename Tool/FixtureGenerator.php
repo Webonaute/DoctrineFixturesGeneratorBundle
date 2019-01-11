@@ -603,6 +603,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         ];
 
         $reflexionClass = new \ReflectionClass($item);
+
         $constructorParams = $this->getConstructorParams($item, $reflexionClass);
         $constructorParamString = '';
         if (!empty($constructorParams)) {
@@ -636,9 +637,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                 $method = "get".ucfirst($identifier);
                 if (method_exists($value, $method)){
                     //change all - for _ in case identifier use UUID as '-' is not a permitted symbol
-                    $ret .= $this->sanitizeSuspiciousSymbols($value->$method());
+                    // $ret .= $this->sanitizeSuspiciousSymbols($value->$method()); // 20180531_pfv_2
                 }else{
-                    $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier);
+                    // $ret .= $this->sanitizeSuspiciousSymbols($value->$identifier); // 20180531_pfv_2
                 }
             }
         }
@@ -689,6 +690,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
      */
     private function sanitizeSuspiciousSymbols($string)
     {
+        if(!is_string($string)) return $string; // pfv
         $sanitizedString = preg_replace('/[^a-zA-Z0-9_]/', '_', $string);
 
         return $sanitizedString;
@@ -726,6 +728,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
         }
 
         $constructorParams = [];
+        if($reflexion->getConstructor()===null) return array(); // 20180531_pfv_3
         foreach ($reflexion->getConstructor()->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {
                 continue;
