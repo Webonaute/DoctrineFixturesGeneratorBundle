@@ -492,7 +492,6 @@ EOT
         }
 
         if ($bundle === null) {
-//            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
             return self::SYMFONY_4_BUNDLE_ALIAS;
         }
 
