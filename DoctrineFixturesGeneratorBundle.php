@@ -9,11 +9,13 @@ use Symfony\Component\Config\FileLocator;
 
 class DoctrineFixturesGeneratorBundle extends Bundle
 {
-    public function load(array $configs, ContainerBuilder $container)
+    public function build(ContainerBuilder $container)
     {
+        parent::build($container);
+
         $loader = new YamlFileLoader(
             $container,
-            new FileLocator(__DIR__.'/../Resources/config')
+            new FileLocator(__DIR__.'/Resources/config')
         );
         $loader->load('services.yaml');
     }

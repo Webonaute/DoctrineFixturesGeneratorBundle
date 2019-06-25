@@ -14,6 +14,7 @@ namespace Webonaute\DoctrineFixturesGeneratorBundle\Generator;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Webonaute\DoctrineFixturesGeneratorBundle\Command\GenerateDoctrineFixtureCommand;
 use Webonaute\DoctrineFixturesGeneratorBundle\Generator\Generator;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -74,7 +75,7 @@ class DoctrineFixtureGenerator extends Generator
         $fixtureFileName = $this->getFixtureFileName($entity, $name, $ids);
         $entityClass = $this->getFqcnEntityClass($entity, 'App', $isFqcnEntity);
 
-        $fixturePath = $bundle . '/DataFixtures/ORM/Load' . $entity . 'Data.php';
+        $fixturePath = ($bundle === GenerateDoctrineFixtureCommand::SYMFONY_4_BUNDLE_ALIAS ? 'src' : $bundle) . '/DataFixtures/ORM/' . $fixtureFileName . '.php';
         $bundleNameSpace = $bundle;
         if ($overwrite === false && file_exists($fixturePath)) {
             throw new \RuntimeException(sprintf('Fixture "%s" already exists.', $fixtureFileName));

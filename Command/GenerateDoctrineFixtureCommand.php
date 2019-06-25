@@ -57,6 +57,7 @@ class GenerateDoctrineFixtureCommand extends GenerateDoctrineCommand
      */
     protected $entityManager;
 
+    public const SYMFONY_4_BUNDLE_ALIAS = "App";
 
     protected function configure()
     {
@@ -491,7 +492,7 @@ EOT
         }
 
         if ($bundle === null) {
-            throw new \LogicException("No bundle found for entity namespace ".$metaNamespace);
+            return self::SYMFONY_4_BUNDLE_ALIAS;
         }
 
         return $bundle;
