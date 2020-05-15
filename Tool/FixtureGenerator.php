@@ -85,7 +85,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
-<spaces><spaces>$manager->getClassMetadata(<entityName>::class)->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
+<spaces><spaces>//$manager->getClassMetadata(<entityName>::class)->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
 <spaces>
 <spaces><spaces>$manager->flush();
