@@ -366,7 +366,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     } else {
                         $setValue = "false";
                     }
-                } elseif ($value instanceof \DateTime) {
+                } elseif ($value instanceof \DateTimeInterface) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
                 } elseif (is_object($value) && !($value instanceof PersistentCollection)
                     //$value != "Doctrine\\ORM\\PersistentCollection"
