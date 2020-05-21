@@ -85,7 +85,7 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 <spaces> */
 <spaces>public function load(ObjectManager $manager)
 <spaces>{
-<spaces><spaces>$manager->getClassMetadata(<entityName>::class)->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
+<spaces><spaces>//$manager->getClassMetadata(<entityName>::class)->setIdGeneratorType(ClassMetadata::GENERATOR_TYPE_NONE);
 <spaces><fixtures>
 <spaces>
 <spaces><spaces>$manager->flush();
@@ -344,10 +344,19 @@ use Doctrine\ORM\Mapping\ClassMetadata;
             $setter = "set" . ucfirst($name);
             $getter = "get" . ucfirst($name);
             $comment = "";
+
+            if (!method_exists($item, $setter)) {
+                $setter = "add" . ucfirst($name);
+                if(substr($name,-1,1) == 's'){
+                    $setter = "add" . ucfirst(substr($name,0,-1));
+                }
+            }
+
             if (method_exists($item, $setter)) {
                 $value = $property->getValue($item);
                 $defaultValue = $property->getValue($newInstance);
-                if ($value === $defaultValue) {
+
+                if ($value === $defaultValue && !($value instanceof PersistentCollection)) {
                     continue;
                 } elseif (is_integer($value)) {
                     $setValue = $value;
@@ -357,9 +366,11 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                     } else {
                         $setValue = "false";
                     }
-                } elseif ($value instanceof \DateTime) {
+                } elseif ($value instanceof \DateTimeInterface) {
                     $setValue = "new \\DateTime(\"" . $value->format("Y-m-d H:i:s") . "\")";
-                } elseif (is_object($value) && get_class($value) != "Doctrine\\ORM\\PersistentCollection") {
+                } elseif (is_object($value) && !($value instanceof PersistentCollection)
+                    //$value != "Doctrine\\ORM\\PersistentCollection"
+                ) {
                     if ($this->hasIgnoreProperty($property) === false) {
                         //check reference.
                         $relatedClass = get_class($value);
@@ -372,20 +383,20 @@ use Doctrine\ORM\Mapping\ClassMetadata;
                         //ignore data for this property.
                         continue;
                     }
-                } elseif (is_object($value) && get_class($value) == "Doctrine\\ORM\\PersistentCollection") {
+                } elseif (is_object($value) && $value instanceof PersistentCollection) {
                     /** @var PersistentCollection $value */
                     $meta = $this->metadata->getAssociationMapping($property->getName());
-
-                    if ($meta['isOwningSide'] === true && $value->isEmpty() === false) {
-                        $setValue = "[\n";
+                    if ($meta['isOwningSide'] === true && $value->count()) {
                         foreach ($value as $object) {
+                            $setValue = "";
                             $relatedClass = get_class($object);
                             $relatedEntity = ClassUtils::getRealClass($relatedClass);
                             $identifiersIdsString = $this->getRelatedIdsForReference($relatedEntity, $object);
-                            $setValue .= $this->spaces.$this->spaces.$this->spaces."\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedEntity)}$identifiersIdsString'),\n";
+                            $setValue .= "\$this->getReference('{$this->referencePrefix}{$this->getEntityNameForRef($relatedEntity)}$identifiersIdsString')";
                             $comment = "";
+                            $code .= "\n<spaces><spaces>{$comment}\$item{$ids}->{$setter}({$setValue});";
                         }
-                        $setValue .= $this->spaces.$this->spaces."]";
+                        continue;
                     }else{
                         //nothing to add.
                         continue;
